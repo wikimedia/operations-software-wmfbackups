@@ -30,22 +30,26 @@ class WMFMariaDB:
         Given a database instance, return the authentication method, including
         the user, password, socket and ssl configuration.
         """
-        if host == 'localhost' and port == 3306:
+        if host == 'localhost':
             # connnect to localhost using plugin_auth:
-            mysql_sock = '/tmp/mysql.sock'
+            config = configparser.ConfigParser(interpolation=None,
+                                                   allow_no_value=True)
+            config.read('/etc/my.cnf')
+            if os.getuid() == 0:
+                user = 'root'
+            else:
+                user = os.getlogin()
+            if port == 3306:
+                mysql_sock = config['client']['socket']
+            else:
+                mysql_sock = '/run/mysqld/mysqld.s' + str(port)[-1:] + '.sock'
             ssl = None
-            user = os.geteuid()
-            password = None
-            charset = None
-        elif host == 'localhost' and port != 3306:
-            mysql_sock = '/tmp/mysql.s' + str(port)[-1:] + '.sock'
-            ssl = None
-            user = os.geteuid()
             password = None
             charset = None
         elif not host.startswith('labsdb'):
-            # connect to a production remote host, use ssl
-            config = configparser.ConfigParser(interpolation=None)
+            # connect to a production remote host, use ssl and prod pass
+            config = configparser.ConfigParser(interpolation=None,
+                                               allow_no_value=True)
             config.read('/root/.my.cnf')
             user = config['client']['user']
             password = config['client']['password']
@@ -53,15 +57,12 @@ class WMFMariaDB:
             mysql_sock = None
             charset = None
         else:
-            # connect to a labs remote host, use ssl
+            # connect to a labs remote host, use ssl and labs pass
             config = configparser.ConfigParser(interpolation=None)
             config.read('/root/.my.cnf')
             user = config['labsdb']['user']
             password = config['labsdb']['password']
-            if host.startswith('labsdb1001') or host.startswith('labsdb1003'):
-                ssl = None
-            else:
-                ssl = {'ca': '/etc/ssl/certs/Puppet_Internal_CA.pem'}
+            ssl = {'ca': '/etc/ssl/certs/Puppet_Internal_CA.pem'}
             mysql_sock = None
             charset = None
 
