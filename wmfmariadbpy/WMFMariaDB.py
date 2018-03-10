@@ -21,8 +21,11 @@ class WMFMariaDB:
     host = None
     port = None
     database = None
+    query_limit = None
+    vendor = None
     __last_error = None
     __debug = False
+
 
     @staticmethod
     def get_credentials(host, port, database):
@@ -68,10 +71,12 @@ class WMFMariaDB:
 
         return (user, password, mysql_sock, ssl, charset)
 
+
     @property
     def debug(self):
         """debug getter"""
         return self.__debug
+
 
     @debug.setter
     def debug(self, debug):
@@ -81,10 +86,12 @@ class WMFMariaDB:
         else:
             self.__debug = True
 
+
     @property
     def last_error(self):
         """last_error getter"""
         return self.__last_error
+
 
     @staticmethod
     def resolve(host):
@@ -117,14 +124,16 @@ class WMFMariaDB:
             host = host + domain
         return host
 
+
     def __init__(self, host, port=3306, database=None, debug=False,
-                 connect_timeout=10.0):
+                 connect_timeout=10.0, query_limit=None, vendor='MariaDB'):
         """
         Try to connect to a mysql server instance and returns a python
         connection identifier, which you can use to send one or more queries.
         """
 
         self.debug = debug
+        self.vendor = vendor
         host = WMFMariaDB.resolve(host)
         (user, password, socket, ssl, charset) = WMFMariaDB.get_credentials(
             host, port, database)
@@ -149,6 +158,9 @@ class WMFMariaDB:
         self.port = int(port)
         self.database = database
         self.connect_timeout = connect_timeout
+        if query_limit is not None:
+            self.set_query_limit(query_limit) # we ignore it silently if it fails
+
 
     def change_database(self, database):
         """
@@ -170,6 +182,27 @@ class WMFMariaDB:
         self.database = database
         if self.debug:
             print('Changed database to \'{}\''.format(self.database))
+
+
+    def set_query_limit(self, query_limit):
+        """
+        Changes the default query limit to the given value, in seconds. Fractional
+        time, e.g. 0.1, 1.5 are allowed. Set to 0 or None to disable the query
+        limit.
+        """
+        if not query_limit or query_limit == 0:
+            self.query_limit = 0
+        elif self.vendor == 'MariaDB':
+            self.query_limit = float(query_limit)
+        else:
+            self.query_limit = int(query_limit * 1000.0)
+
+        if self.vendor == 'MariaDB':
+            result = self.execute('SET SESSION max_statement_time = {}'.format(self.query_limit))
+        else:
+            result = self.execute('SET SESSION max_execution_time = {}'.format(self.query_limit))
+        return result['success'] # many versions will not accept query time restrictions
+
 
     def execute(self, command, dryrun=False):
         """
@@ -193,7 +226,8 @@ class WMFMariaDB:
                 if self.debug:
                     print('Executing \'{}\''.format(command))
                 cursor.execute(command)
-        except (pymysql.err.ProgrammingError, pymysql.err.OperationalError) as e:
+        except (pymysql.err.ProgrammingError, pymysql.err.OperationalError,
+                pymysql.err.InternalError) as e:
             cursor.close()
             query = command
             host = self.host
@@ -221,6 +255,7 @@ class WMFMariaDB:
         return {"query": query, "host": host, "port": port,
                 "database": database, "success": True, "numrows": numrows,
                 "rows": rows, "fields": fields}
+
 
     @staticmethod
     def get_wikis(shard=None, wiki=None):
@@ -288,6 +323,7 @@ class WMFMariaDB:
 
         return sorted([([h[0], int(h[1])] + [d]) for h in hosts for d in dbs])
 
+
     @staticmethod
     def execute_many(command, shard=None, wiki=None, dryrun=True, debug=False):
         """
@@ -330,6 +366,7 @@ class WMFMariaDB:
         if connection.connection is not None:
             connection.disconnect()
         return result
+
 
     def disconnect(self):
         """

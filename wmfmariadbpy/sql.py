@@ -21,6 +21,9 @@ def parse_args():
                         required=True)
     parser.add_argument('--port', '-P', type=int, help='the port to connect',
                         default=3306)
+    parser.add_argument('--query-limit', '-l', type=float, help="""Maximum time
+                        that the query can run for, after that time, it will be
+                        killed. By default, no limit.""", default=None)
     parser.add_argument('--dry-run', action='store_true', dest='dryrun',
                         help="""If to only run a test and only print what will
                              be done""")
@@ -86,7 +89,8 @@ def main():
             result = None
     else:
         conn = WMFMariaDB(host=options.host, port=options.port,
-                          database=options.database, debug=options.debug)
+                          database=options.database, debug=options.debug,
+                          query_limit=options.query_limit)
         if conn.connection is None:
             if conn.last_error is not None:
                 e = conn.last_error
