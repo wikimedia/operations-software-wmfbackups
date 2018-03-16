@@ -13,10 +13,11 @@ Be afraid. Be very afraid...
 """
 import argparse
 import re
-from shutil import which
+import shutil
 import subprocess
+import sys
 
-from WMFMariaDB import WMFMariaDB
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 
 class OnlineSchemaChanger(object):
@@ -37,6 +38,7 @@ class OnlineSchemaChanger(object):
         """Tidy up before finishing."""
         if self._conn:
             self._conn.disconnect()
+            self._conn = None
 
     @property
     def connection(self):
@@ -49,7 +51,7 @@ class OnlineSchemaChanger(object):
                 print("Connect failed: {}@{}:{}".format(self.conf.user,
                                                         self.conf.host,
                                                         self.conf.port))
-                exit(1)
+                sys.exit(1)
 
         return self._conn
 
@@ -65,7 +67,7 @@ class OnlineSchemaChanger(object):
             if self.conf.no_replicate:
                 self._ddlrep.append("set session sql_log_bin=0;")
 
-            if self.conf.gtid_domain_id:
+            if self.conf.gtid_domain_id is not None:
                 gtid = self.conf.gtid_domain_id
                 self._ddlrep.append("set session gtid_domain_id = {};".format(gtid))
 
@@ -140,7 +142,7 @@ class OnlineSchemaChanger(object):
         answer = input("continue? yes/no ")
         if not answer.startswith('y'):
             print('abort')
-            exit(0)
+            sys.exit(0)
 
     def _execute(self, sql):
         """Run a query and return wether it was successfull or not."""
@@ -163,10 +165,10 @@ class OnlineSchemaChanger(object):
     def osctool(self):
         """Get the pt osc tool."""
         if not self._osctool:
-            self._osctool = which('pt-online-schema-change')
+            self._osctool = shutil.which('pt-online-schema-change')
             if not self._osctool:
                 print("Error: Could not find 'pt-online-schema-change'.")
-                exit(1)
+                sys.exit(1)
 
         return self._osctool
 
@@ -265,7 +267,8 @@ class OnlineSchemaChanger(object):
                         print("WARNING {} : {} encountered problems".format(db, self.conf.table))
                         self.confirm()
                 else:
-                    print("SKIPPING {} : {} dry-run encountered problems".format(db, self.conf.table))
+                    print("SKIPPING {} : {} dry-run encountered problems".format(db,
+                                                                                 self.conf.table))
                     self.confirm()
 
             elif self.conf.method in ("ddl", "ddlonline"):
@@ -365,14 +368,14 @@ def parse_args():
         if args.dblist:
             if not args.dblist.endswith('.dblist'):
                 print("'{}' doesn't have the 'dblist' extension".format(args.dblist))
-                exit(1)
+                sys.exit(1)
 
             try:
                 with open(args.dblist) as f:
                     args.dblist = [l.strip() for l in f if l.strip()]
             except IOError:
                 print("Can't read '{}'".format(args.dblist))
-                exit(1)
+                sys.exit(1)
         else:
             args.dblist = args.db
 

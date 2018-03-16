@@ -1,0 +1,9 @@
+language: python
+python: 3.6
+install:
+    - pip install -r requirements.txt -r test-requirements.txt
+script:
+    # TODO: Just 'flake8 wmfmariadbpy'
+    - flake8 wmfmariadbpy/osc_host.py wmfmariadbpy/test/
+    # TODO: Add '--cover-min-percentage 80'
+    - nosetests --with-coverage --cover-package wmfmariadbpy
