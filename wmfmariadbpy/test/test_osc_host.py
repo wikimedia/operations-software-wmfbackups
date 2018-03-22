@@ -416,3 +416,184 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         self.osc.confirm.assert_called_once()
         self.assertEqual(4, self.osc.execute.call_count)
+
+    @patch('builtins.print')
+    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
+           new_callable=PropertyMock)
+    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_args',
+           new_callable=PropertyMock)
+    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.ddl_args',
+           new_callable=PropertyMock)
+    def test_show_conf(self, ddl_args_mock, pt_osc_args_mock, pt_osc_dry_run_args_mock, print_mock):
+        """Test the methos used to show the conf."""
+        self.osc.show_conf()
+
+        self.assertEqual(10, print_mock.call_count)
+
+    @patch('sys.exit')
+    def test_change_database(self, exit_mock):
+        """Test successful change of db."""
+        connection = MagicMock()
+        self.osc._conn = connection
+
+        new_db = 'test_db'
+        connection.database = new_db
+
+        self.osc.change_database(new_db)
+
+        connection.change_database.assert_called_once_with(new_db)
+        exit_mock.assert_not_called()
+
+    @patch('sys.exit')
+    def test_change_database_fail(self, exit_mock):
+        """Test failed change of db."""
+        connection = MagicMock()
+        self.osc._conn = connection
+
+        new_db = 'test_db'
+        self.osc.change_database(new_db)
+        connection.change_database.assert_called_once_with(new_db)
+        exit_mock.assert_called_once_with(1)
+
+    def test_check_collision_with_collision(self):
+        """Test check_collision with an existing collision."""
+        self.osc.confirm = MagicMock()
+        connection = MagicMock()
+        self.osc._conn = connection
+
+        connection.execute.return_value = {'numrows': 1}
+
+        self.osc.check_collision()
+
+        self.osc.confirm.assert_called_once()
+
+    def test_check_collision_without_collision(self):
+        """Test check_collision without any collision."""
+        self.osc.confirm = MagicMock()
+        connection = MagicMock()
+        self.osc._conn = connection
+
+        connection.execute.return_value = {'numrows': 0}
+
+        self.osc.check_collision()
+
+        self.osc.confirm.assert_not_called()
+
+    def test_run_percona(self):
+        """Test run_percona method."""
+        self.osc.run_pt_ost_alter = MagicMock(return_value=True)
+        self.osc.run_pt_cleanup = MagicMock()
+        self.osc.execute = MagicMock()
+        self.conf.no_cleanup = True
+        self.conf.analyze = True
+        self.osc._ddlrep = ['somehting']
+
+        db = 'test_db'
+        self.assertTrue(self.osc.run_percona(db))
+
+        alter_call_list = (call(db, dry_run=True), call(db))
+        self.osc.run_pt_ost_alter.assert_has_calls(alter_call_list)
+        self.osc.run_pt_cleanup.assert_called_once_with(db)
+        self.osc.execute.assert_called_once()
+
+    def test_run_percon_failed_dry_run(self):
+        """Test run_percona method with failed dry-run."""
+        self.osc.run_pt_ost_alter = MagicMock(return_value=False)
+
+        self.assertFalse(self.osc.run_percona('test_db'))
+
+        self.osc.run_pt_ost_alter.assert_called_once_with('test_db', dry_run=True)
+
+    def test_run_percon_failed_run(self):
+        """Test run_percona method with failed run."""
+        self.osc.run_pt_ost_alter = MagicMock(side_effect=[True, False])
+
+        db = 'test_db'
+        self.assertFalse(self.osc.run_percona(db))
+
+        alter_call_list = (call(db, dry_run=True), call(db))
+        self.osc.run_pt_ost_alter.assert_has_calls(alter_call_list)
+
+    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.ddl_args',
+           new_callable=PropertyMock)
+    def test_run_ddl_with_ddl_method(self, ddl_args_mock):
+        """Test run_ddl with the ddl method."""
+        self.osc.execute = MagicMock(return_value=True)
+        table = 'table'
+        alter = 'alter'
+        self.conf.table = table
+        self.conf.altersql = alter
+        self.conf.method = 'ddl'
+        ddlargs = ['arg']
+        ddl_args_mock.return_value = ddlargs
+
+        self.assertTrue(self.osc.run_ddl('test_db'))
+
+        expected_query = "alter table `{}` {}".format(table, alter)
+        self.osc.execute.assert_called_once_with(expected_query, ['arg'])
+
+    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.ddl_args',
+           new_callable=PropertyMock)
+    def test_run_ddl_with_ddlonline_method(self, ddl_args_mock):
+        """Test run_ddl with the ddlonline method."""
+        self.osc.execute = MagicMock(return_value=False)
+        table = 'table'
+        alter = 'alter'
+        self.conf.table = table
+        self.conf.altersql = alter
+        self.conf.method = 'ddlonline'
+        ddlargs = ['arg']
+        ddl_args_mock.return_value = ddlargs
+
+        self.assertFalse(self.osc.run_ddl('test_db'))
+
+        expected_query = "alter online table `{}` {}".format(table, alter)
+        self.osc.execute.assert_called_once_with(expected_query, ['arg'])
+
+    def test_run_method_with_percona(self):
+        """Test main run with the percona method."""
+        self.osc.show_conf = MagicMock()
+        self.osc.confirm = MagicMock()
+        self.osc.change_database = MagicMock()
+        self.osc.check_collision = MagicMock()
+        self.osc.run_percona = MagicMock()
+        self.osc.run_ddl = MagicMock()
+        self.conf.dblist = ['test_db1', 'test_db2']
+
+        self.conf.method = 'percona'
+
+        self.osc.run()
+
+        self.osc.show_conf.assert_called_once()
+
+        db_calls = [call(db) for db in self.conf.dblist]
+        self.osc.change_database.assert_has_calls(db_calls)
+
+        self.assertEqual(len(self.conf.dblist), self.osc.check_collision.call_count)
+
+        self.osc.run_percona.assert_has_calls(db_calls, True)
+        self.osc.run_ddl.assert_not_called()
+
+    def test_run_method_with_ddl(self):
+        """Test main run with the ddl method."""
+        self.osc.show_conf = MagicMock()
+        self.osc.confirm = MagicMock()
+        self.osc.change_database = MagicMock()
+        self.osc.check_collision = MagicMock()
+        self.osc.run_percona = MagicMock()
+        self.osc.run_ddl = MagicMock()
+        self.conf.dblist = ['test_db1', 'test_db2']
+
+        self.conf.method = 'ddl'
+
+        self.osc.run()
+
+        self.osc.show_conf.assert_called_once()
+
+        db_calls = [call(db) for db in self.conf.dblist]
+        self.osc.change_database.assert_has_calls(db_calls)
+
+        self.assertEqual(0, self.osc.check_collision.call_count)
+
+        self.osc.run_percona.assert_not_called()
+        self.osc.run_ddl.assert_has_calls(db_calls, True)

@@ -224,8 +224,8 @@ class OnlineSchemaChanger(object):
         sql = "drop table if exists _{}_done".format(self.conf.table)
         self.execute(sql, self.ddl_rep)
 
-    def run(self):
-        """Perform the online schema change operation."""
+    def show_conf(self):
+        """Show the configuration to be used."""
         print("Host        : {}".format(self.conf.host))
         print("Port        : {}".format(self.conf.port))
         print("Databases   : {}".format(self.conf.dblist))
@@ -237,52 +237,77 @@ class OnlineSchemaChanger(object):
         print("ddl args    : {}".format(self.ddl_args))
         print("analyze     : {}".format(self.conf.analyze))
 
+    def change_database(self, db):
+        """Change the database and exit on fail."""
+        self.connection.change_database(db)
+        if self.connection.database != db:
+            print("Error: Could not change to '{}'.".format(db))
+            sys.exit(1)
+        print("host: {}, database: {}".format(self.conf.host, db))
+
+    def check_collision(self):
+        """Check for table collisions and ask for confirmation if so."""
+        new_table = '_{}_new'.format(self.conf.table)
+        res = self.connection.execute("show tables like '{}'".format(new_table))
+        if res.get('numrows', 0) > 0:
+            print("{} already exists!".format(new_table))
+            self.confirm()
+
+    def run_percona(self, db):
+        """Perform the operation on the given db with the percona method."""
+        dry_run_ret = self.run_pt_ost_alter(db, dry_run=True)
+        if dry_run_ret:
+            actual_run_ret = self.run_pt_ost_alter(db)
+            if actual_run_ret:
+                if self.conf.no_cleanup:
+                    self.run_pt_cleanup(db)
+
+                if self.conf.analyze:
+                    sql = "analyze table {};".format(self.conf.table)
+                    self.execute(sql, self.ddl_rep)
+            else:
+                print("WARNING {} : {} encountered problems".format(db, self.conf.table))
+                return False
+        else:
+            print("SKIPPING {} : {} dry-run encountered problems".format(db, self.conf.table))
+            return False
+
+        return True
+
+    def run_ddl(self, db):
+        """Perform the operation on the given db with the ddl or ddlonline method."""
+        table = self.conf.table
+        alter = self.conf.altersql
+        if self.conf.method == "ddl":
+            sql = "alter table `{}` {}".format(table, alter)
+        else:
+            sql = "alter online table `{}` {}".format(table, alter)
+
+        if not self.execute(sql, self.ddl_args):
+            print("WARNING {} encountered problems while being executed at {}.{}"
+                  .format(alter, db, table))
+            return False
+
+        return True
+
+    def run(self):
+        """Perform the online schema change operation."""
+        self.show_conf()
         self.confirm()
 
         for db in self.conf.dblist:
-            self.connection.change_database(db)
-            if self.connection.database != db:
-                print("Error: Could not change to '{}'.".format(db))
-                exit(1)
-            print("host: {}, database: {}".format(self.conf.host, db))
+            self.change_database(db)
 
+            success = True
             if self.conf.method == 'percona':
-                new_table = '_{}_new'.format(self.conf.table)
-                res = self.connection.execute("show tables like '{}'".format(new_table))
-                if res.get('numrows', 0) > 0:
-                    print("{} already exists!".format(new_table))
-                    self.confirm()
-
-                dry_run_ret = self.run_pt_ost_alter(db, dry_run=True)
-                if dry_run_ret:
-                    actual_run_ret = self.run_pt_ost_alter(db)
-                    if actual_run_ret:
-                        if self.conf.no_cleanup:
-                            self.run_pt_cleanup(db)
-
-                        if self.conf.analyze:
-                            sql = "analyze table {};".format(self.conf.table)
-                            self.execute(sql, self.ddl_rep)
-                    else:
-                        print("WARNING {} : {} encountered problems".format(db, self.conf.table))
-                        self.confirm()
-                else:
-                    print("SKIPPING {} : {} dry-run encountered problems".format(db,
-                                                                                 self.conf.table))
-                    self.confirm()
-
+                self.check_collision()
+                success = self.run_percona(db)
             elif self.conf.method in ("ddl", "ddlonline"):
-                table = self.conf.table
-                alter = self.conf.altersql
-                if self.conf.method == "ddl":
-                    sql = "alter table `{}` {}".format(table, alter)
-                else:
-                    sql = "alter online table `{}` {}".format(table, alter)
 
-                if not self.execute(sql, self.ddl_args):
-                    print("WARNING {} encountered problems while being executed at {}.{}"
-                          .format(alter, db, table))
-                    self.confirm()
+                success = self.run_ddl(db)
+
+            if not success and self.conf.warn:
+                self.confirm()
 
 
 def parse_args():
