@@ -1,9 +1,12 @@
 """Tests for OnlineSchemaChanger class."""
 import subprocess
+import sys
 import unittest
 from unittest.mock import patch, call, MagicMock, PropertyMock
 
-from wmfmariadbpy.osc_host import OnlineSchemaChanger
+from wmfmariadbpy.osc_host import OnlineSchemaChanger, parse_args
+
+from wmfmariadbpy.test.utils import hide_stderr
 
 
 class TestOnlineSchemaChanger(unittest.TestCase):
@@ -597,3 +600,92 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         self.osc.run_percona.assert_not_called()
         self.osc.run_ddl.assert_has_calls(db_calls, True)
+
+
+class TestArgumentParsing(unittest.TestCase):
+    """Test cases for the command line arguments parsing."""
+
+    def parse_args(self, args):
+        """Call parse_args patching the arguments."""
+        with patch.object(sys, 'argv', args):
+            return parse_args()
+
+    def check_bad_args(self, args):
+        """Check arg parsing fails for the given args."""
+        with self.assertRaises(SystemExit) as exc:
+            with hide_stderr():
+                self.parse_args(args)
+        self.assertEquals(exc.exception.code, 2)
+
+    def test_missing_required_args(self):
+        """Test errors with missing required args."""
+        missing_required_args_list = [
+            ['osc_host'],
+            ['osc_host', '--host', 'localhost'],
+            ['osc_host', '--db', 'test'],
+            ['osc_host', '--table', 'test'],
+            ['osc_host', '--host', 'localhost', '--db', 'test', '--table', 'test'],
+            ['osc_host', '--db', 'test', '--table', 'test', 'sql'],
+            ['osc_host', '--host', 'localhost', '--table', 'test', 'sql'],
+            ['osc_host', '--host', 'localhost', '--db', 'test', 'sql'],
+        ]
+        for test_args in missing_required_args_list:
+            self.check_bad_args(test_args)
+
+    def test_invalid_gtid(self):
+        """Test error with an invalid gtid."""
+        base_args = ['osc_host', '--host', 'localhost', '--db', 'test', '--table', 'test', 'sql']
+        invalid_gtid_list = ['invalid', '-1']
+        for gtid in invalid_gtid_list:
+            test_args = base_args + ['--gtid_domain_id', gtid]
+            self.check_bad_args(test_args)
+
+    def test_valid_gtid(self):
+        """Test valid gtid are properly parsed."""
+        base_args = ['osc_host', '--host', 'localhost', '--db', 'test', '--table', 'test', 'sql']
+        gtid_list = ['1', '999']
+        for gtid in gtid_list:
+            test_args = base_args + ['--gtid_domain_id', gtid]
+            conf = self.parse_args(test_args)
+            self.assertEqual(gtid, conf.gtid_domain_id)
+
+    def test_sql_as_a_string(self):
+        """Test the alter query is properly returned as a string."""
+        base_args = ['osc_host', '--host', 'localhost', '--db', 'test', '--table', 'test']
+        sql_args = ['add', 'column', 'test', 'int']
+        parsed = self.parse_args(base_args + sql_args)
+
+        expected_sql = ' '.join(sql_args)
+        self.assertEqual(expected_sql, parsed.altersql)
+
+    @patch('builtins.open')
+    def test_dblist(self, open_mock):
+        """Test dblist file is properly read."""
+        open_mock.return_value = MagicMock()
+        open_mock.return_value.__enter__.return_value = ['db1  \n', '  db2\n', '']
+        expected_dbs = ['db1', 'db2']
+        dblist_file = '.dblist'
+
+        args = ['osc_host', '--host', 'localhost', '--dblist', dblist_file,
+                '--table', 'test', 'sql']
+
+        conf = self.parse_args(args)
+        self.assertListEqual(expected_dbs, conf.dblist)
+        open_mock.assert_called_once_with(dblist_file)
+
+    @patch('builtins.open')
+    @patch('builtins.print')
+    def test_dblist_open_fail(self, print_mock, open_mock):
+        """Test dblist file open fail."""
+        open_mock.side_effect = IOError()
+        dblist_file = '.dblist'
+
+        args = ['osc_host', '--host', 'localhost', '--dblist', dblist_file,
+                '--table', 'test', 'sql']
+
+        with self.assertRaises(SystemExit) as exc:
+            self.parse_args(args)
+        self.assertEquals(exc.exception.code, 1)
+
+        open_mock.assert_called_once_with(dblist_file)
+        print_mock.assert_called_once()
