@@ -3,6 +3,7 @@
 import argparse
 import os
 import re
+from multiprocessing.pool import ThreadPool
 import subprocess
 import sys
 
@@ -18,17 +19,23 @@ DUMPNAME_REGEX = 'dump\.([a-z0-9\-]+)\.(20\d\d-[01]\d-[0123]\d\--\d\d-\d\d-\d\d)
 def parse_options():
     parser = argparse.ArgumentParser(description='Recover a logical backup')
     parser.add_argument('section',
-                        help=('Section name or absolute path of the directory to recover' 
-                        '("s3", "/srv/backups/archive/dump.s3.2022-11-12--19-05-35")'))
+                        help=('Section name or absolute path of the directory to recover'
+                              '("s3", "/srv/backups/archive/dump.s3.2022-11-12--19-05-35")')
+                        )
     parser.add_argument('--host', help='Host to recover to', default=DEFAULT_HOST)
     parser.add_argument('--port', type=int, help='Port to recover to', default=DEFAULT_PORT)
+    parser.add_argument('--threads', type=int,
+                        help='Maximum number of threads to use for recovery',
+                        default=DEFAULT_THREADS)
     parser.add_argument('--user', help='User to connect for recovery', default=DEFAULT_USER)
     parser.add_argument('--password', help='Password to recover', default='')
     parser.add_argument('--socket', help='Socket to recover to', default=None)
     parser.add_argument('--database', help='Only recover this database', default=None)
-    parser.add_argument('--replicate', help=('Enable binlog on import, for imports '
-                        'to a master that have to be replicated (but makes load slower)'),
-                        type=bool, default=False)
+    parser.add_argument('--replicate',
+                        help=('Enable binlog on import, for imports '
+                              'to a master that have to be replicated (but makes load slower).'
+                              'By default, binlog writes are disabled.'),
+                        action='store_true')
 
     return parser.parse_args()
 
@@ -49,7 +56,7 @@ def untar_and_remove(file_name, directory):
 def get_my_loader_cmd(backup_dir, options):
     cmd = ['/usr/bin/myloader']
     cmd.extend(['--directory', backup_dir])
-    cmd.extend(['--threads', str(DEFAULT_THREADS)])
+    cmd.extend(['--threads', str(options.threads)])
     cmd.extend(['--host', options.host])
     cmd.extend(['--port', str(options.port)])
     cmd.extend(['--user', options.user])
@@ -65,24 +72,46 @@ def get_my_loader_cmd(backup_dir, options):
     return cmd
 
 
+def unarchive_databases(backup_dir, options):
+    if options.database:
+        # We decompress only 1 database, the one to be recovered
+        db_tar_name = '{}.gz.tar'.format(options.database)
+        if os.path.isfile(os.path.join(backup_dir, db_tar_name)):
+            print('Unarchiving {} ...'.format(db_tar_name))
+            untar_and_remove(db_tar_name, backup_dir)
+    else:
+        # We decompress all databases in parallel
+        pool = ThreadPool(options.threads)
+        files = os.listdir(backup_dir)
+        printed_message = False
+        for entry in files:
+            if entry.endswith('.tar'):
+                if not printed_message:
+                    print('Unarchiving consolidated databases...')
+                    printed_message = True
+                pool.apply_async(untar_and_remove, (entry, backup_dir))
+        pool.close()
+        pool.join()
+
+
 def recover_logical_dump(options):
     backup_name = None
-    pattern = re.compile(DUMPNAME_REGEX)
-    
-    if options.section.startsWith('/'):
-    # Recover from absolute path
-        match = pattern.match(options.section)
-        if os.path.isdir(options.section) and match is not None:
-            backup_name = match.group(0)
-            backup_dir = options.section
+
+    if os.path.isabs(options.section):
+        # Recover from absolute path
+        backup_dir = options.section.rstrip(os.sep)  # basename() differs from unix basename
+        pattern = re.compile('.+(' + DUMPNAME_REGEX + ')')
+        if os.path.isdir(backup_dir) and pattern.match(backup_dir) is not None:
+            backup_name = os.path.basename(backup_dir)
     else:
-    # Recover from default dir
+        # Recover from default dir
         files = sorted(os.listdir(BACKUP_DIR), reverse=True)
 
         for entry in files:
             path = os.path.join(BACKUP_DIR, entry)
             if not os.path.isdir(path):
                 continue
+            pattern = re.compile(DUMPNAME_REGEX)
             match = pattern.match(entry)
             if match is None:
                 continue
@@ -94,21 +123,11 @@ def recover_logical_dump(options):
     if backup_name is None:
         print('Latest backup with name "{}" not found'.format(options.section))
         return -1
-
     print('Attempting to recover "{}" ...'.format(backup_name))
-    # untar any files
-    if options.database:
-        db_tar_name = '{}.gz.tar'.format(options.database)
-        print('Unarchiving {} ...'.format(db_tar_name))
-        if os.path.isfile(os.path.join(backup_dir, db_tar_name)):
-            untar_and_remove(db_tar_name, backup_dir)
-    else:
-        print('Unarchiving consolidated databases...')
-        files = os.listdir(backup_dir)
-        for entry in files:
-            # TODO: serial unarchiving still, could be too slow
-            if entry.endswith('.tar'):
-                untar_and_remove(entry, backup_dir)
+
+    # untar any files, if any
+    unarchive_databases(backup_dir, options)
+
     # run myloader
     print('Running myloader...')
     cmd = get_my_loader_cmd(backup_dir, options)
