@@ -7,7 +7,6 @@ import ipaddress
 import pymysql
 import re
 import socket
-import pprint
 
 
 class WMFMariaDB:
@@ -26,7 +25,6 @@ class WMFMariaDB:
     __last_error = None
     __debug = False
 
-
     @staticmethod
     def get_credentials(host, port, database):
         """
@@ -36,7 +34,7 @@ class WMFMariaDB:
         if host == 'localhost':
             # connnect to localhost using plugin_auth:
             config = configparser.ConfigParser(interpolation=None,
-                                                   allow_no_value=True)
+                                               allow_no_value=True)
             config.read('/etc/my.cnf')
             if os.getuid() == 0:
                 user = 'root'
@@ -71,12 +69,10 @@ class WMFMariaDB:
 
         return (user, password, mysql_sock, ssl, charset)
 
-
     @property
     def debug(self):
         """debug getter"""
         return self.__debug
-
 
     @debug.setter
     def debug(self, debug):
@@ -86,12 +82,10 @@ class WMFMariaDB:
         else:
             self.__debug = True
 
-
     @property
     def last_error(self):
         """last_error getter"""
         return self.__last_error
-
 
     @staticmethod
     def resolve(host):
@@ -108,7 +102,7 @@ class WMFMariaDB:
         except ValueError:
             pass
         if '.' not in host and host != 'localhost':
-            domain=''
+            domain = ''
             if re.match('^[a-z]+1[0-9][0-9][0-9]$', host) is not None:
                 domain = '.eqiad.wmnet'
             elif re.match('^[a-z]+2[0-9][0-9][0-9]$', host) is not None:
@@ -124,14 +118,12 @@ class WMFMariaDB:
             host = host + domain
         return host
 
-
     def __init__(self, host, port=3306, database=None, debug=False,
                  connect_timeout=10.0, query_limit=None, vendor='MariaDB'):
         """
         Try to connect to a mysql server instance and returns a python
         connection identifier, which you can use to send one or more queries.
         """
-
         self.debug = debug
         self.vendor = vendor
         host = WMFMariaDB.resolve(host)
@@ -159,8 +151,7 @@ class WMFMariaDB:
         self.database = database
         self.connect_timeout = connect_timeout
         if query_limit is not None:
-            self.set_query_limit(query_limit) # we ignore it silently if it fails
-
+            self.set_query_limit(query_limit)  # we ignore it silently if it fails
 
     def change_database(self, database):
         """
@@ -183,7 +174,6 @@ class WMFMariaDB:
         if self.debug:
             print('Changed database to \'{}\''.format(self.database))
 
-
     def set_query_limit(self, query_limit):
         """
         Changes the default query limit to the given value, in seconds. Fractional
@@ -201,8 +191,7 @@ class WMFMariaDB:
             result = self.execute('SET SESSION max_statement_time = {}'.format(self.query_limit))
         else:
             result = self.execute('SET SESSION max_execution_time = {}'.format(self.query_limit))
-        return result['success'] # many versions will not accept query time restrictions
-
+        return result['success']  # many versions will not accept query time restrictions
 
     def execute(self, command, dryrun=False):
         """
@@ -235,7 +224,7 @@ class WMFMariaDB:
             database = self.database
             self.__last_error = [e.args[0], e.args[1]]
             if self.debug:
-                 print('ERROR {}: {}'.format(e.args[0], e.args[1]))
+                print('ERROR {}: {}'.format(e.args[0], e.args[1]))
             return {"query": query, "host": host, "port": port,
                     "database": database, "success": False,
                     "errno": self.last_error[0], "errmsg": self.last_error[1]}
@@ -255,7 +244,6 @@ class WMFMariaDB:
         return {"query": query, "host": host, "port": port,
                 "database": database, "success": True, "numrows": numrows,
                 "rows": rows, "fields": fields}
-
 
     @staticmethod
     def get_wikis(shard=None, wiki=None):
@@ -323,7 +311,6 @@ class WMFMariaDB:
 
         return sorted([([h[0], int(h[1])] + [d]) for h in hosts for d in dbs])
 
-
     @staticmethod
     def execute_many(command, shard=None, wiki=None, dryrun=True, debug=False):
         """
@@ -366,7 +353,6 @@ class WMFMariaDB:
         if connection.connection is not None:
             connection.disconnect()
         return result
-
 
     def disconnect(self):
         """

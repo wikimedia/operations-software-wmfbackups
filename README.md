@@ -21,8 +21,10 @@ nosetests --with-coverage --cover-package wmfmariadbpy
 To check the code style compliance:
 
 ```
-flake8 wmfmariadbpy/osc_host.py wmfmariadbpy/test/
+flake8 --exclude wmfmariadbpy/check_health.py,wmfmariadbpy/compare.py wmfmariadbpy
 ```
+
+Right now we are excluding those two files, until they are improved.
 
 ## Execution
 
