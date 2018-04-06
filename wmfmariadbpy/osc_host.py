@@ -362,12 +362,16 @@ def parse_args():
         args.altersql = ' '.join(args.altersql)
 
         # Check list of databases is correct
-        if args.dblist and '.dblist' in args.dblist:
+        if args.dblist:
+            if not args.dblist.endswith('.dblist'):
+                print("'{}' doesn't have the 'dblist' extension".format(args.dblist))
+                exit(1)
+
             try:
                 with open(args.dblist) as f:
                     args.dblist = [l.strip() for l in f if l.strip()]
             except IOError:
-                print("Can't read {}".format(args.dblist))
+                print("Can't read '{}'".format(args.dblist))
                 exit(1)
         else:
             args.dblist = args.db
