@@ -237,7 +237,8 @@ class WMFMariaDB:
         database = self.database
         if cursor.rowcount > 0:
             rows = cursor.fetchall()
-            fields = tuple([x[0] for x in cursor.description])
+            if cursor.description:
+                fields = tuple([x[0] for x in cursor.description])
         numrows = cursor.rowcount
         cursor.close()
 

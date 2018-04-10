@@ -1,7 +1,26 @@
+sudo: required
+
 language: python
-python: 3.6
+python:
+    - "3.5"
+    - "3.6"
+    - "3.7-dev"
+
+addons:
+  mariadb: '10.1'
+
+before_install:
+    - sudo apt-key adv --keyserver keys.gnupg.net --recv-keys 8507EFA5
+    - echo "deb http://repo.percona.com/apt `lsb_release -cs` main" | sudo tee -a /etc/apt/sources.list
+    - sudo apt-get update -qq
+    - sudo apt-get install percona-toolkit
+
 install:
-    - pip install -r requirements.txt -r test-requirements.txt
+    - pip install -U -r requirements.txt -r test-requirements.txt
+
+before_script:
+    - sudo cp /etc/mysql/my.cnf /etc/my.cnf
+
 script:
     # TODO: Just 'flake8 wmfmariadbpy'
     - flake8 --exclude wmfmariadbpy/check_health.py,wmfmariadbpy/compare.py wmfmariadbpy

@@ -5,7 +5,7 @@ Collection of Python classes and scripts to operate with MariaDB servers.
 Some dependencies are required in order to run the scripts and the tests. The easiest way to work is by using a virtualenv.
 
 ```
-virtualenv -p python3.6 venv
+virtualenv --no-site-packages -p python3.5 venv
 . venv/bin/activate
 pip install -U -r requirements.txt -r test-requirements.txt
 ```
@@ -17,6 +17,15 @@ Test are located under *wmfmariadbpy/test*. To run the tests and get a coverage 
 ```
 nosetests --with-coverage --cover-package wmfmariadbpy
 ```
+
+### Integration tests requirements
+
+In order to be able to to run the tests you'll need to be able to run the script localy. You'll need to have:
+* A *.my.cnf* file with the proper conf
+* A MariaDB listening on localhost:3306
+* *pt-online-schema-change* script on your PATH
+
+## Code style compliance
 
 To check the code style compliance:
 

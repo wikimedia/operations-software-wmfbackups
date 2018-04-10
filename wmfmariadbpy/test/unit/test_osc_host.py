@@ -31,7 +31,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         self.osc.__del__()
 
-        connection.disconnect.assert_called_once()
+        connection.disconnect.assert_called_once_with()
 
     @patch('wmfmariadbpy.osc_host.WMFMariaDB')
     def test_connection(self, mock):
@@ -112,7 +112,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
             for arg in rep_args:
                 self.assertIn(arg, ddlargs)
             self.assertListEqual(ddlargs, mocked_osc._ddlargs)
-            mock_ddlrep.assert_called_once()
+            mock_ddlrep.assert_called_once_with()
 
     def test_pt_ost_rep(self):
         """Test default percona replication args."""
@@ -191,7 +191,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
             for arg in rep_args:
                 self.assertIn(arg, ptdrargs)
             self.assertListEqual(ptdrargs, mocked_osc._ptdrargs)
-            mock_ptrep.assert_called_once()
+            mock_ptrep.assert_called_once_with()
 
     def test_pt_osc_dry_run_args_primery_key(self):
         """Test Percona Toolkit OSC args for the dry run with primary-key option."""
@@ -209,7 +209,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
             for arg in rep_args:
                 self.assertIn(arg, ptdrargs)
             self.assertListEqual(ptdrargs, mocked_osc._ptdrargs)
-            mock_ptrep.assert_called_once()
+            mock_ptrep.assert_called_once_with()
 
     def test_pt_osc_args(self):
         """Test default Percona Toolkit OSC args."""
@@ -227,7 +227,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
             for arg in rep_args:
                 self.assertIn(arg, ptargs)
             self.assertListEqual(ptargs, mocked_osc._ptargs)
-            mock_ptrep.assert_called_once()
+            mock_ptrep.assert_called_once_with()
 
     def test_pt_osc_args_primery_key(self):
         """Test Percona Toolkit OSC args with primary-key option."""
@@ -246,7 +246,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
             for arg in rep_args:
                 self.assertIn(arg, ptargs)
             self.assertListEqual(ptargs, mocked_osc._ptargs)
-            mock_ptrep.assert_called_once()
+            mock_ptrep.assert_called_once_with()
 
     def test_pt_osc_args_no_cleanup(self):
         """Test Percona Toolkit OSC args with no-cleanup option."""
@@ -271,7 +271,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
             for arg in rep_args:
                 self.assertIn(arg, ptargs)
             self.assertListEqual(ptargs, mocked_osc._ptargs)
-            mock_ptrep.assert_called_once()
+            mock_ptrep.assert_called_once_with()
 
     @patch('builtins.input', lambda x: 'y')
     @patch('builtins.print')
@@ -328,17 +328,17 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         existing_connection.execute.assert_called_once_with(args[0])
 
     @patch('shutil.which')
-    def test_osctool(self, mock):
+    def test_osctool(self, which_mock):
         """Test osctool calls."""
         path = 'osctool/path'
-        mock.return_value = path
+        which_mock.return_value = path
 
         self.assertEqual('', self.osc._osctool)
         self.assertEqual(path, self.osc.osctool)
         self.assertEqual(path, self.osc._osctool)
         self.assertEqual(path, self.osc.osctool)
 
-        mock.assert_called_once()
+        which_mock.assert_called_once_with('pt-online-schema-change')
 
     @patch('shutil.which')
     @patch('builtins.print')
@@ -390,7 +390,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         actual_cmd = self.osc.run_command.call_args[0][0]
         self.assertIn("--execute", actual_cmd)
         self.assertNotIn("--dry-run", actual_cmd)
-        pt_osc_args_mock.assert_called_once()
+        pt_osc_args_mock.assert_called_once_with()
         pt_osc_dr_args_mock.assert_not_called()
 
     @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
@@ -408,7 +408,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         self.assertNotIn("--execute", actual_cmd)
         self.assertIn("--dry-run", actual_cmd)
         pt_osc_args_mock.assert_not_called()
-        pt_osc_dr_args_mock.assert_called_once()
+        pt_osc_dr_args_mock.assert_called_once_with()
 
     def test_run_pt_cleanup(self):
         """Test db cleanup after a percona run."""
@@ -417,7 +417,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         self.osc.run_pt_cleanup('test_db')
 
-        self.osc.confirm.assert_called_once()
+        self.osc.confirm.assert_called_once_with()
         self.assertEqual(4, self.osc.execute.call_count)
 
     @patch('builtins.print')
@@ -468,7 +468,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         self.osc.check_collision()
 
-        self.osc.confirm.assert_called_once()
+        self.osc.confirm.assert_called_once_with()
 
     def test_check_collision_without_collision(self):
         """Test check_collision without any collision."""
@@ -497,7 +497,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         alter_call_list = (call(db, dry_run=True), call(db))
         self.osc.run_pt_ost_alter.assert_has_calls(alter_call_list)
         self.osc.run_pt_cleanup.assert_called_once_with(db)
-        self.osc.execute.assert_called_once()
+        self.assertEqual(1, self.osc.execute.call_count)
 
     def test_run_percon_failed_dry_run(self):
         """Test run_percona method with failed dry-run."""
@@ -567,7 +567,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         self.osc.run()
 
-        self.osc.show_conf.assert_called_once()
+        self.osc.show_conf.assert_called_once_with()
 
         db_calls = [call(db) for db in self.conf.dblist]
         self.osc.change_database.assert_has_calls(db_calls)
@@ -591,12 +591,12 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         self.osc.run()
 
-        self.osc.show_conf.assert_called_once()
+        self.osc.show_conf.assert_called_once_with()
 
         db_calls = [call(db) for db in self.conf.dblist]
         self.osc.change_database.assert_has_calls(db_calls)
 
-        self.assertEqual(0, self.osc.check_collision.call_count)
+        self.osc.check_collision.assert_not_called()
 
         self.osc.run_percona.assert_not_called()
         self.osc.run_ddl.assert_has_calls(db_calls, True)
@@ -688,4 +688,4 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertEquals(exc.exception.code, 1)
 
         open_mock.assert_called_once_with(dblist_file)
-        print_mock.assert_called_once()
+        self.assertEqual(1, print_mock.call_count)
