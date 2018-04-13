@@ -116,19 +116,19 @@ def get_status(options):
     status = dict()
 
     if options.process and options.host != 'localhost':
-         print("ERROR: Checking process is only allowed on localhost")
-         sys.exit(-1)
+        print("ERROR: Checking process is only allowed on localhost")
+        sys.exit(-1)
     elif options.process:
         mysqld_processes = get_processes('mysqld')
         status['mysqld_processes'] = mysqld_processes
 
     time_before_connect = time.time()
     mysql = WMFMariaDB(host=options.host, port=options.port,
-                      connect_timeout=options.connect_timeout)
+                       connect_timeout=options.connect_timeout)
     time_after_connect = time.time()
 
     wait_timeout = math.ceil(options.query_timeout)
-    result = mysql.execute("SET SESSION innodb_lock_wait_timeout = {0}, SESSION lock_wait_timeout = {0}, SESSION wait_timeout = {0}".format(wait_timeout))
+    mysql.execute("SET SESSION innodb_lock_wait_timeout = {0}, SESSION lock_wait_timeout = {0}, SESSION wait_timeout = {0}".format(wait_timeout))
 
     if mysql.connection is None:
         status['connection'] = None
@@ -141,7 +141,7 @@ def get_status(options):
         ssl_expiration = get_var(mysql, 'Ssl_server_not_after', type='STATUS')
         threads_connected = get_var(mysql, 'Threads\_connected', type='STATUS')
         total_queries = get_var(mysql, 'Queries', type='STATUS')
-        now = time.time() # get the time here for more exact QPS calculations
+        now = time.time()  # get the time here for more exact QPS calculations
         if options.slave_status:
             replication = get_replication_status(mysql)
 
@@ -182,7 +182,6 @@ def get_status(options):
             status['heartbeat'] = heartbeat
             status['query_latency'] = time_after_heartbeat - time_before_heartbeat
 
-
         if options.slave_status and replication is not None and len(replication) > 0:
             status['replication'] = dict()
             for channel in replication:
@@ -191,8 +190,8 @@ def get_status(options):
                 replication_status['Slave_SQL_Running'] = channel['Slave_SQL_Running']
                 replication_status['Seconds_Behind_Master'] = channel['Seconds_Behind_Master']
                 replication_status['Last_IO_Error'] = channel['Last_IO_Error'] if channel['Last_IO_Error'] != '' else None
-                #FIXME may contain private data, needs filtering:
-                replication_status['Last_SQL_Error'] = channel['Last_SQL_Error']  if channel['Last_SQL_Error'] != '' else None
+                # FIXME may contain private data, needs filtering:
+                replication_status['Last_SQL_Error'] = channel['Last_SQL_Error'] if channel['Last_SQL_Error'] != '' else None
                 status['replication'][channel['Connection_name']] = replication_status
 
         status['connection_latency'] = time_after_connect - time_before_connect

@@ -1,8 +1,5 @@
 """wmfmariadbpy."""
-import os
 from setuptools import setup
-
-cwd = os.path.dirname(__file__)
 
 setup(
     name='wmfmariadbpy',
@@ -12,8 +9,15 @@ setup(
     packages=(
         'wmfmariadbpy',
     ),
-    install_requires=open(os.path.join(cwd, 'requirements.txt')).readlines(),
-    tests_require=open(os.path.join(cwd, 'test-requirements.txt')).readlines(),
+    install_requires=[
+        'pymysql',
+        'tabulate',
+    ],
+    tests_require=[
+        'flake8',
+        'nose',
+        'coverage',
+    ],
     entry_points={
         # TODO: Expand
         'console_scripts': [

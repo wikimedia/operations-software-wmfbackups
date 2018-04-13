@@ -58,6 +58,7 @@ def connect_in_parallel(hosts, database, threads):
     pool.join()
     return tuple(conn)
 
+
 def execute_in_parallel(connections, query, verbose):
     pool = ThreadPool(processes=len(connections))
     async_result = dict()
@@ -121,7 +122,7 @@ def main():
     if options.print_every != 0:
         print('Starting comparison between id {} and {}'.format(min_id, max_id))
     # setup query for comparison
-    ## TODO: make column(s) iterator
+    # TODO: make column(s) iterator
     command = 'DESCRIBE {}'.format(options.table)
     describe_results = execute_in_parallel(connections, command, options.verbose)
     for describe_result in describe_results:
@@ -155,14 +156,14 @@ def main():
                     speed = (lower_limit - min_id) / (datetime.now() - start_time).total_seconds()
                     eta = int((max_id - lower_limit) / speed)
                     print('{}: row id {}/{}, ETA: {:02}m{:02}s, {} chunk(s) found different'
-                          .format(datetime.now().isoformat(), lower_limit, max_id, eta//60, eta%60, differences))
+                          .format(datetime.now().isoformat(), lower_limit, max_id, eta//60, eta % 60, differences))
 
             command = 'SELECT crc32(GROUP_CONCAT({4})) FROM {0} WHERE {1} BETWEEN {2} AND {3} ORDER BY {5}'.format(options.table, options.column, lower_limit, upper_limit, all_columns, order_by)
             results = execute_in_parallel(connections, command, options.verbose)
             # only count each chunck once
             difference_detected = False
             for i in range(1, len(results)):
-                if not(results[0]['success'] and results[i]['success'] and results[0]['rows'][0][0] ==   results[i]['rows'][0][0]):
+                if not(results[0]['success'] and results[i]['success'] and results[0]['rows'][0][0] == results[i]['rows'][0][0]):
                     # chunk detected as different
                     print('DIFFERENCE on {}: WHERE {} BETWEEN {} AND {}'.format(connections[i].host + ':' + str(connections[i].port), options.column, lower_limit, upper_limit))
                     difference_detected = True
