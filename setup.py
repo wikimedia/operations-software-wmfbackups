@@ -12,6 +12,7 @@ setup(
     install_requires=[
         'pymysql',
         'tabulate',
+        'cumin'
     ],
     tests_require=[
         'flake8',
