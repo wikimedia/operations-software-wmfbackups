@@ -23,6 +23,7 @@ setup(
         # TODO: Expand
         'console_scripts': [
             'osc_host = wmfmariadbpy.osc_host:main',
+            'transfer = wmfmariadbpy.transfer:main',
         ],
     },
     test_suite='wmfmariadbpy.test',

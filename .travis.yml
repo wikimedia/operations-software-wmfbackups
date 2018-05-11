@@ -4,7 +4,6 @@ language: python
 python:
     - "3.5"
     - "3.6"
-    - "3.7-dev"
 
 addons:
   mariadb: '10.1'
@@ -16,13 +15,11 @@ before_install:
     - sudo apt-get install percona-toolkit
 
 install:
-    - pip install -U -r requirements.txt -r test-requirements.txt
+    - pip install tox-travis
 
 before_script:
     - sudo cp /etc/mysql/my.cnf /etc/my.cnf
 
 script:
-    # TODO: Just 'flake8 wmfmariadbpy'
-    - flake8 --exclude wmfmariadbpy/check_health.py,wmfmariadbpy/compare.py wmfmariadbpy
-    # TODO: Add '--cover-min-percentage 80'
-    - nosetests --with-coverage --cover-package wmfmariadbpy
+    - tox -e flake8
+    - tox -e unit

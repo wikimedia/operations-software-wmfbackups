@@ -47,7 +47,7 @@ tox -e flake8
 
 ## Execution
 
-Only *osc_host.py* is included on the setup for now, so the rest of them can be run directly. As for *osc_host.py* the easiest is to run it via the virtualenv `venv`:
+Only *osc_host.py* and *transfer.py* are included on the setup for now, so the rest of them can be run directly. As for *osc_host.py* and *transfer.py*, the easiest is to run it via the virtualenv `venv`:
 ```
 tox -e venv -- osc_host --method=ddl --host=localhost --db=test --table=test "add column test int"
 ```

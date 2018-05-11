@@ -3,7 +3,7 @@ from multiprocessing import Process, Pipe
 import cumin
 from cumin import query, transport, transports
 
-from RemoteExecution import RemoteExecution, CommandReturn
+from wmfmariadbpy.RemoteExecution import RemoteExecution, CommandReturn
 
 
 # TODO: Refactor with the one on ParamikoExecution or find a better approach
@@ -19,8 +19,7 @@ class CuminExecution(RemoteExecution):
     """
 
     def __init__(self):
-        # TODO
-        self.config = cumin.Config('config.yaml')
+        self.config = cumin.Config()
 
     def format_command(self, command):
         if isinstance(command, str):
