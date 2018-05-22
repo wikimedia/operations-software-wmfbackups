@@ -62,12 +62,12 @@ class Transferer(object):
         self.cipher = 'chacha20'
         self.buffer_size = 8
 
-    def _run(self, host, command):
+    def run_command(self, host, command):
         return self.remote_executor.run(host, command)
 
     def is_dir(self, host, path):
         command = ['/bin/bash', '-c', r'"[ -d "{}" ]"'.format(path)]
-        result = self._run(host, command)
+        result = self.run_command(host, command)
         return not result.returncode
 
     def file_exists(self, host, path):
@@ -76,7 +76,7 @@ class Transferer(object):
         host given
         """
         command = ['/bin/bash', '-c', r'"[ -a "{}" ]"'.format(path)]
-        result = self._run(host, command)
+        result = self.run_command(host, command)
         return not result.returncode
 
     def calculate_checksum(self, host, path):
@@ -90,7 +90,7 @@ class Transferer(object):
         else:
             command = ['/bin/bash', '-c', r'"cd {} && {} {}"'
                        .format(parent_dir, hash_executable, basename)]
-        result = self._run(host, command)
+        result = self.run_command(host, command)
         if result.returncode != 0:
             raise Exception('md5sum execution failed')
         return result.stdout
@@ -98,7 +98,7 @@ class Transferer(object):
     def has_available_disk_space(self, host, path, size):
         command = ['/bin/bash', '-c',
                    r'"df --block-size=1 --output=avail {} | /usr/bin/tail -n 1"'.format(path)]
-        result = self._run(host, command)
+        result = self.run_command(host, command)
         if result.returncode != 0:
             raise Exception('df execution failed')
         return int(result.stdout) > size
@@ -109,7 +109,7 @@ class Transferer(object):
         or the aggregated size of all the files inside path and its subdirectories
         """
         command = ['/usr/bin/du', '--bytes', '--summarize', '{}'.format(path)]
-        result = self._run(host, command)
+        result = self.run_command(host, command)
         if result.returncode != 0:
             raise Exception('du execution failed')
         return int(result.stdout.split()[0])
@@ -200,7 +200,7 @@ class Transferer(object):
 
         job = self.remote_executor.start_job(target_host, dst_command)
         time.sleep(1)  # FIXME: Work on a better way to wait for nc to be listening
-        result = self._run(self.source_host, src_command)
+        result = self.run_command(self.source_host, src_command)
         if result.returncode != 0:
             self.remote_executor.kill_job(target_host, job)
         else:
@@ -212,7 +212,7 @@ class Transferer(object):
                    '{}'.format(self.source_host),
                    '--dport', '{}'.format(self.options['port']),
                    '-j', 'ACCEPT']
-        result = self._run(target_host, command)
+        result = self.run_command(target_host, command)
         if result.returncode != 0:
             raise Exception('iptables execution failed')
 
@@ -221,7 +221,7 @@ class Transferer(object):
                    '{}'.format(self.source_host),
                    '--dport', '{}'.format(self.options['port']),
                    '-j', 'ACCEPT']
-        result = self._run(target_host, command)
+        result = self.run_command(target_host, command)
         return result.returncode
 
     def sanity_checks(self):

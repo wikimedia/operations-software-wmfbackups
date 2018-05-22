@@ -19,7 +19,14 @@ class CuminExecution(RemoteExecution):
     """
 
     def __init__(self):
-        self.config = cumin.Config()
+        self._config = None
+
+    @property
+    def config(self):
+        if not self._config:
+            self._config = cumin.Config()
+
+        return self._config
 
     def format_command(self, command):
         if isinstance(command, str):
