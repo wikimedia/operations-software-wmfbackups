@@ -28,6 +28,11 @@ def option_parse():
     encrypt_group.add_argument('--no-encrypt', action='store_false', dest='encrypt')
     parser.set_defaults(encrypt=True)
 
+    checksum_group = parser.add_mutually_exclusive_group()
+    checksum_group.add_argument('--checksum', action='store_true', dest='checksum')
+    checksum_group.add_argument('--no-checksum', action='store_false', dest='checksum')
+    parser.set_defaults(checksum=True)
+
     options = parser.parse_args()
     source_host = options.source.split(':', 1)[0]
     source_path = options.source.split(':', 1)[1]
@@ -39,7 +44,8 @@ def option_parse():
     other_options = {
         'port': options.port,
         'compress': options.compress,
-        'encrypt': options.encrypt
+        'encrypt': options.encrypt,
+        'checksum': options.checksum
     }
     return source_host, source_path, target_hosts, target_paths, other_options
 
@@ -245,7 +251,8 @@ class Transferer(object):
                                  .format(target_host, target_path))
 
         self.source_is_dir = self.is_dir(self.source_host, self.source_path)
-        self.checksum = self.calculate_checksum(self.source_host, self.source_path)
+        if self.options['checksum']:
+            self.checksum = self.calculate_checksum(self.source_host, self.source_path)
 
     def after_transfer_checks(self, result, target_host, target_path):
         # post-transfer checks
@@ -264,15 +271,16 @@ class Transferer(object):
         if self.original_size != final_size:
             print('WARNING: Original size is {} but transferred size is {} for'
                   ' copy to {}'.format(self.original_size, final_size, target_host))
-        target_checksum = self.calculate_checksum(target_host, target_final_path)
-        if self.checksum != target_checksum:
-            print('ERROR: Original checksum {} on {} is different than checksum {}'
-                  ' on {}'.format(self.checksum, self.source_host, target_checksum,
-                                  target_host))
-            return 3
-        else:
-            print(('Checksum of all original files on {} and the trasmitted ones'
-                   ' on {} match.').format(self.source_host, target_host))
+        if self.options['checksum']:
+            target_checksum = self.calculate_checksum(target_host, target_final_path)
+            if self.checksum != target_checksum:
+                print('ERROR: Original checksum {} on {} is different than checksum {}'
+                      ' on {}'.format(self.checksum, self.source_host, target_checksum,
+                                      target_host))
+                return 3
+            else:
+                print(('Checksum of all original files on {} and the transmitted ones'
+                       ' on {} match.').format(self.source_host, target_host))
         print('{} bytes correctly transferred from {} to {}'
               .format(final_size, self.source_host, target_host))
         return 0
