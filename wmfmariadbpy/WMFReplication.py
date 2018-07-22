@@ -293,8 +293,9 @@ class WMFReplication:
             self.start_slave(thread='sql')
         elif slave_status['slave_io_running'] == 'Yes':
             self.start_slave(thread='io')
-        slave_status = self.slave_status()
-        return slave_status
+
+        # TODO: What about GTID mode restoration?
+        return self.slave_status()
 
     def move(self, new_master, start_if_stopped=False):
         """
@@ -368,6 +369,7 @@ class WMFReplication:
                new_master_slave_status['slave_io_running'] == 'Yes' and
                new_master_slave_status['seconds_behind_master'] < self.timeout)):
             # TODO: Probably, in this case, lag check should be done using heartbeat
+            # TODO: Flush logs before stop for easier find?
             result = self.stop_slave()
             if not result['success']:
                 return {'success': False, 'errno': -1, 'errmsg': 'The instance could not stop its replication, impossible to perform the topology change'}
@@ -391,6 +393,9 @@ class WMFReplication:
                         last_gtid_executed = event[5]
                 if last_gtid_executed is not None:
                     break
+            if last_gtid_executed is None:
+                self.restore_replication_status(new_master_replication, slave_status, start_if_stopped)
+                return {'success': False, 'errno': -1, 'errmsg': 'Failed to find a usable GTID on the current instance'}
             print('Last GTID executed: {}'.format(last_gtid_executed))
 
             master_binlogs = new_master.execute('SHOW BINARY LOGS')
@@ -408,13 +413,16 @@ class WMFReplication:
                         break
                 if found_master_binlog_file is not None:
                     break
+            if found_master_binlog_file is None:
+                self.restore_replication_status(new_master_replication, slave_status, start_if_stopped)
+                return {'success': False, 'errno': -1, 'errmsg': 'Failed to find a usable GTID on the master'}
 
             self.reset_slave()
             result = self.setup(master_host=new_master.host, master_port=new_master.port, master_log_file=found_master_binlog_file, master_log_pos=found_master_binlog_pos)
             if result['success']:
                 return self.restore_replication_status(new_master_replication, slave_status, start_if_stopped)
             else:
-                return {'success': False, 'errno': -1, 'errmsg': 'Not yet fully implemented'}
+                return result
 
         return {'success': False, 'errno': -1, 'errmsg': 'The topology change cannot be done at the moment- check its relationship, replication status or replication lag'}
 

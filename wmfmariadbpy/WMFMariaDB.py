@@ -45,7 +45,7 @@ class WMFMariaDB:
         return self is not None and self.host is not None and \
             other_instance is not None and other_instance.host is not None and \
             self.host == other_instance.host and self.port == other_instance.port and \
-            self.socket == other_instance.socket
+            ((self.socket is None and other_instance.socket is None) or self.socket == other_instance.socket)
 
     @staticmethod
     def get_credentials(host, port, database):

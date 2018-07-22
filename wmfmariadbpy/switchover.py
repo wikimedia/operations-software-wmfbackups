@@ -150,8 +150,25 @@ def verify_status_after_switch(master_replication, slave_replication, timeout):
 
     master_status = master_replication.slave_status()
     if master_status is None or not master_status['success'] or master_status['slave_sql_running'] != 'Yes' or master_status['slave_io_running'] != 'Yes':
-        print('[ERROR] The original master is not replicating correctly from the switched instance')
+        print('[ERROR]: The original master is not replicating correctly from the switched instance')
         sys.exit(-1)
+
+
+def move_replicas_to_new_master(master_replication, slave_replication, timeout):
+    """
+    Migrates all old master direct slaves to the new master, maintaining the consistency.
+    """
+    for replica in master_replication.slaves():
+        print('Testing if to migrate {}...'.format(replica.name()))
+        if replica.is_same_instance_as(slave_replication.connection):
+            print('Nope')
+            continue  # do not move the target replica to itself
+        replication = WMFReplication.WMFReplication(replica, timeout)
+        result = replication.move(new_master=slave_replication.connection, start_if_stopped=True)
+        if not result['success']:
+            print('[ERROR]: {} failed to be migrated from master to replica'.format(replica.name()))
+            sys.exit(-1)
+        print('Migrated {} successfully from master to replica'.format(replica.name()))
 
 
 def main():
@@ -160,6 +177,8 @@ def main():
     master_replication = WMFReplication.WMFReplication(master, timeout)
 
     do_preflight_checks(master_replication, slave_replication, timeout)
+
+    move_replicas_to_new_master(master_replication, slave_replication, timeout)
 
     set_master_in_read_only(master_replication)
 
