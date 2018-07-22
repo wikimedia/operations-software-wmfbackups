@@ -212,6 +212,17 @@ class WMFReplication:
         else:
             return slave_status
 
+    def master(self):
+        """
+        Returns a WMFMariaDB object of the current master of the replicating instance or None if
+        the current instance does not have a working replica.
+        """
+        slave_status = self.slave_status()
+        if slave_status is None or not slave_status['success']:
+            return None
+        else:
+            return WMFMariaDB.WMFMariaDB(host=slave_status['master_host'], port=slave_status['master_port'])
+
     def caught_up_to_master(self, master=None):
         """
         Checks if replication has cought up to the master (normally after the master stopped
@@ -224,14 +235,34 @@ class WMFReplication:
         heatbeat_status to check ongoing lag.
         """
         slave_status = self.slave_status()
+        if slave_status is None or not slave_status['success']:
+            return False
         if master is None:
             # Autodiscover master
-            master = WMFMariaDB.WMFMariaDB(host=slave_status['master_host'], port=slave_status['master_port'])
+            master = self.master()
         master_replication = WMFReplication(master)
         master_status = master_replication.master_status()
-        if slave_status is None or not slave_status['success'] or master_status is None or not master_status['success']:
+        if master_status is None or not master_status['success']:
             return False
         return slave_status['relay_master_log_file'] == master_status['file'] and slave_status['exec_master_log_pos'] == master_status['position']
+
+    def restore_replication_status(self, new_master_replication, slave_status, start_if_stopped):
+        """
+        Returns replication to the original state on both the current host and the master,
+        based either on the forced start parameter (start_if_stopped), or on the original
+        state (slave_status).
+        """
+        if start_if_stopped:
+            self.start_slave()
+            new_master_replication.start_slave()
+        elif slave_status['slave_sql_running'] == 'Yes' and slave_status['slave_io_running'] == 'Yes':
+            self.start_slave()
+        elif slave_status['slave_sql_running'] == 'Yes':
+            self.start_slave(thread='sql')
+        elif slave_status['slave_io_running'] == 'Yes':
+            self.start_slave(thread='io')
+        slave_status = self.slave_status()
+        return slave_status
 
     def move(self, new_master, start_if_stopped=False):
         """
@@ -251,81 +282,51 @@ class WMFReplication:
             return {'success': False, 'errno': -1, 'errmsg': 'The host is not configured as a replica'}
         # is the host already replicating from the new master ?
         if new_master.host == slave_status['master_host'] and new_master.port == int(slave_status['master_port']):
-            return {'success': False, 'errno': -1, 'errmsg': 'The host is already configured with as a master of {}'.format(':'.join((new_master.host, str(new_master.port))))}
+            return {'success': False, 'errno': -1, 'errmsg': 'The host is already configured as a master of {}'.format(':'.join((new_master.host, str(new_master.port))))}
         # is the instance to be changed and the new master the same instance (are we trying to connect it to itself)?
-        # if new_master.host == self.connection.host and new_master.port == self.connection.port:
-        query = 'SELECT @@GLOBAL.hostname AS hostname, @@GLOBAL.port AS port'
-        result = new_master.execute(query)
-        new_master_host = self.connection.resolve(result['rows'][0][0])
-        new_master_port = result['rows'][0][1]
-        result = self.connection.execute(query)
-        replica_host = self.connection.resolve(result['rows'][0][0])
-        replica_port = result['rows'][0][1]
-        if new_master_host == replica_host and new_master_port == replica_port:
-            return {'success': False, 'errno': -1, 'errmsg': 'The host is tring to connect to itself'}
+        if new_master.host == self.connection.host and new_master.port == self.connection.port:
+            return {'success': False, 'errno': -1, 'errmsg': 'The host is trying to connect to itself'}
 
         # TODO: Does the new master have working replication credentials?
 
         new_master_replication = WMFReplication(new_master)
         new_master_master_status = new_master_replication.master_status()
         new_master_slave_status = new_master_replication.slave_status()
-        print(new_master_master_status)
-        print(new_master_slave_status)
 
         # Are both hosts replicating from the same master and stopped on the same coordinate? If yes, then just move them directly
-        if new_master_slave_status is not None and \
-           new_master_slave_status['master_host'] == slave_status['master_host'] and \
-           new_master_slave_status['master_port'] == slave_status['master_port'] and \
+        current_master = self.master()
+        current_master_new_master = new_master_replication.master()
+        if current_master.is_same_instance_as(current_master_new_master) and \
            slave_status['slave_sql_running'] == 'No' and \
            new_master_slave_status['slave_sql_running'] == 'No' and \
-           slave_status['relay_master_log_file'] == new_master_slave_status['relay_master_log_file'] and \
-           slave_status['exec_master_log_pos'] == new_master_slave_status['exec_master_log_pos']:
-            query = """CHANGE MASTER TO
-                        MASTER_HOST = '{}',
-                        MASTER_PORT = {},
-                        MASTER_LOG_FILE = '{}',
-                        MASTER_LOG_POS = {}
-            """.format(new_master_host, new_master_port, new_master_master_status['file'], new_master_master_status['position'])
-            result = self.connection.execute(query)
+           self.caught_up_to_master(current_master) and \
+           new_master_replication.caught_up_to_master(current_master):
+            self.stop_slave()
+            self.reset_slave()
+            result = self.setup(master_host=new_master.host, master_port=new_master.port, master_log_file=new_master_master_status['file'], master_log_pos=new_master_master_status['position'])
             if result['success']:
-                if start_if_stopped:
-                    self.start_slave()
-                    new_master_replication.start_slave()
-                    time.sleep(self.timeout)
-                slave_status = self.slave_status()
-                return slave_status
+                return self.restore_replication_status(new_master_replication, slave_status, start_if_stopped)
             else:
                 return result
 
         # Is the host we are replicating from replicating directly from the new master, stopped, and the replica caught up?
         # Also move it directly
-        old_master = WMFMariaDB.WMFMariaDB(host=slave_status['master_host'], port=slave_status['master_port'])
-        old_master_replication = WMFReplication(old_master)
-        old_master_slave_status = old_master_replication.slave_status()
-        old_master_master_status = old_master_replication.master_status()
+        current_master_replication = WMFReplication(current_master)
+        current_master_slave_status = current_master_replication.slave_status()
+        # current_master_master_status = current_master_replication.master_status()
 
-        if old_master_slave_status is not None and \
-           old_master_slave_status['master_host'] == new_master_host and \
-           old_master_slave_status['master_port'] == new_master_port and \
-           old_master_slave_status['slave_sql_running'] == 'No' and \
-           slave_status['relay_master_log_file'] == old_master_master_status['file'] and \
-           slave_status['exec_master_log_pos'] == new_master_master_status['position']:
-            query = """CHANGE MASTER TO
-                        MASTER_HOST = '{}',
-                        MASTER_PORT = {},
-                        MASTER_LOG_FILE = '{}',
-                        MASTER_LOG_POS = {}
-            """.format(new_master_host, new_master_port, old_master_slave_status['relay_master_log_file'], old_master_slave_status['exec_master_log_pos'])
-            result = self.connection.execute(query)
+        if current_master_slave_status is not None and \
+           current_master_replication.master().is_same_instance_as(new_master) and \
+           current_master_slave_status['slave_sql_running'] == 'No' and \
+           self.caught_up_to_master(current_master):
+            self.stop_slave()
+            self.reset_slave()
+            result = self.setup(master_host=new_master.host, master_port=new_master.port, master_log_file=current_master_slave_status['relay_master_log_file'], master_log_pos=current_master_slave_status['exec_master_log_pos'])
             if result['success']:
-                if start_if_stopped:
-                    self.start_slave()
-                    new_master_replication.start_slave()
-                    time.sleep(self.timeout)
-                slave_status = self.slave_status()
-                return slave_status
+                return self.restore_replication_status(new_master_replication, slave_status, start_if_stopped)
             else:
                 return result
+
         # Are both hosts replicating and without lag? Then stop the replica and move it
         if False:
             pass
