@@ -2,6 +2,8 @@
 import WMFMariaDB
 
 import configparser
+import ipaddress
+import socket
 import time
 
 
@@ -223,6 +225,36 @@ class WMFReplication:
         else:
             return WMFMariaDB.WMFMariaDB(host=slave_status['master_host'], port=slave_status['master_port'])
 
+    def slaves(self):
+        """
+        Returns a list of WMFMariaDB objects of all currently connected replicas of the instances, as detected by
+        show slave hosts. It requires --report-host correctly configured on the replicas.
+        If report-host is not configured, it fails back to assume its server_id is the same as its ipv4 (which has
+        the limitation that there cannot be more than 1 server from the same ip).
+        This means it will only detect replicas which io_thread is running (connected to the master).
+        If no replica is detected, it returns the empty array.
+        TODO: SHOW SLAVE HOSTS is a limited way to discover replicas; however, processlist doesn't show the source
+        port.
+        """
+        slaves = []
+        result = self.connection.execute('SHOW SLAVE HOSTS')
+        if not result['success'] or result['fields'][1] != 'Host' or result['fields'][2] != 'Port' or result['fields'][0] != 'Server_id':
+            return slaves
+        for row in result['rows']:
+            host = row[1]
+            if host is None or host == '':
+                # --report-host is not set, use server_id as the ipv4, and perform an inverse dns resolution
+                server_id = int(row[0])
+                ip = str(ipaddress.IPv4Address(server_id))
+                host = socket.gethostbyaddr(ip)[0]
+            port = int(row[2])
+            if port not in (0, 3306):
+                host += ':' + str(port)
+            connection = WMFMariaDB.WMFMariaDB(host)
+            if WMFReplication(connection).is_direct_replica_of(self.connection):
+                slaves.append(connection)
+        return slaves
+
     def caught_up_to_master(self, master=None):
         """
         Checks if replication has cought up to the master (normally after the master stopped
@@ -328,9 +360,63 @@ class WMFReplication:
                 return result
 
         # Are both hosts replicating and without lag? Then stop the replica and move it
-        if False:
-            pass
-        return {'success': False, 'errno': -1, 'errmsg': 'The hosts need to be both stopped in sync and replicating from one another or from the same master'}
+        if slave_status['slave_sql_running'] == 'Yes' and \
+           slave_status['slave_io_running'] == 'Yes' and \
+           slave_status['seconds_behind_master'] < self.timeout and \
+           (new_master_slave_status is None or
+           (new_master_slave_status['slave_sql_running'] == 'Yes' and
+               new_master_slave_status['slave_io_running'] == 'Yes' and
+               new_master_slave_status['seconds_behind_master'] < self.timeout)):
+            # TODO: Probably, in this case, lag check should be done using heartbeat
+            result = self.stop_slave()
+            if not result['success']:
+                return {'success': False, 'errno': -1, 'errmsg': 'The instance could not stop its replication, impossible to perform the topology change'}
+            master_log_file_after_stop = result['relay_master_log_file']
+            master_log_pos_after_stop = result['exec_master_log_pos']
+            result = self.master_status()
+            slave_log_file_after_stop = result['file']
+            slave_log_post_after_stop = result['position']
+            print('Stopped at master position: {}, slave position {}'.format(master_log_file_after_stop + ':' + str(master_log_pos_after_stop),
+                                                                             slave_log_file_after_stop + ':' + str(slave_log_post_after_stop)))
+            slave_binlogs = self.connection.execute('SHOW BINARY LOGS')
+            last_gtid_executed = None
+            for current_binlog_index in range(slave_binlogs['numrows'] - 1, -1, -1):
+                binlog_file = slave_binlogs['rows'][current_binlog_index][0]
+                events = self.connection.execute('SHOW BINLOG EVENTS IN \'{}\''.format(binlog_file))
+
+                for event in events['rows']:
+                    if event[1] >= slave_log_post_after_stop:
+                        break  # we have reached the end of the events replicated
+                    if event[2] == 'Gtid' and event[5].startswith('BEGIN GTID'):
+                        last_gtid_executed = event[5]
+                if last_gtid_executed is not None:
+                    break
+            print('Last GTID executed: {}'.format(last_gtid_executed))
+
+            master_binlogs = new_master.execute('SHOW BINARY LOGS')
+            found_master_binlog_file = None
+            found_master_binlog_pos = None
+            for current_binlog_index in range(master_binlogs['numrows'] - 1, -1, -1):
+                binlog_file = master_binlogs['rows'][current_binlog_index][0]
+                events = new_master.execute('SHOW BINLOG EVENTS IN \'{}\''.format(binlog_file))
+
+                for event in events['rows']:
+                    if event[2] == 'Gtid' and event[5] == last_gtid_executed:
+                        found_master_binlog_file = event[0]
+                        found_master_binlog_pos = event[1]
+                        print('Position found on the master at: {}:{}'.format(found_master_binlog_file, str(found_master_binlog_pos)))
+                        break
+                if found_master_binlog_file is not None:
+                    break
+
+            self.reset_slave()
+            result = self.setup(master_host=new_master.host, master_port=new_master.port, master_log_file=found_master_binlog_file, master_log_pos=found_master_binlog_pos)
+            if result['success']:
+                return self.restore_replication_status(new_master_replication, slave_status, start_if_stopped)
+            else:
+                return {'success': False, 'errno': -1, 'errmsg': 'Not yet fully implemented'}
+
+        return {'success': False, 'errno': -1, 'errmsg': 'The topology change cannot be done at the moment- check its relationship, replication status or replication lag'}
 
     def debug(self):
         """
@@ -399,7 +485,7 @@ class WMFReplication:
             print('Could not restart slave after change master: {}'.format(start_slave['errmsg']))
         return change_master['success']
 
-    def heartbeat_status(self, connection_name=None):
+    def heartbeat_status(self):
         """
         Returns the status of the replication, according to heartbeat (without running show slave
         status).
