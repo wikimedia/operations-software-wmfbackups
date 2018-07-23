@@ -205,7 +205,7 @@ class WMFReplication:
                 break
             slave_status = self.slave_status()
 
-        if slave_thread == '' and slave_status['slave_io_running'] != 'No' or slave_status['slave_sql_running'] != 'No':
+        if slave_thread == '' and (slave_status['slave_io_running'] != 'No' or slave_status['slave_sql_running'] != 'No'):
             return {'success': False, 'errno': -1, 'errmsg': slave_status['last_io_error'] + slave_status['last_sql_error']}
         elif slave_thread == 'SQL_THREAD' and slave_status['slave_sql_running'] != 'No':
             return {'success': False, 'errno': -1, 'errmsg': slave_status['last_sql_error']}
