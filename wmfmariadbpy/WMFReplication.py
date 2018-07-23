@@ -3,6 +3,7 @@ import WMFMariaDB
 
 import configparser
 import ipaddress
+import re
 import socket
 import time
 
@@ -370,11 +371,18 @@ class WMFReplication:
            (new_master_slave_status['slave_sql_running'] == 'Yes' and
                new_master_slave_status['slave_io_running'] == 'Yes' and
                new_master_slave_status['seconds_behind_master'] < self.timeout)):
-            # TODO: Probably, in this case, lag check should be done using heartbeat
-            # TODO: Flush logs before stop for easier find?
+            # TODO: Probably, in this case, lag check should be done using heartbeat ?
+            # 2 asumptions: the next event to replicate after GTID A-B-C is A-B-C+1, and that exists already on the new master
+            # flush binary logs to make the search faster
+            # While flush binary logs is desirable- running it and letting it modify the binlogs can confuse GTID replication
+            # print('Purging binary logs to speed up coordinate finding')
+            # new_master.execute('FLUSH BINARY LOGS')
+            # self.connection.execute('FLUSH BINARY LOGS')
             result = self.stop_slave()
             if not result['success']:
                 return {'success': False, 'errno': -1, 'errmsg': 'The instance could not stop its replication, impossible to perform the topology change'}
+            # waiting 1 second to let at least heartbeat to record some extra events
+            time.sleep(1.0)
             master_log_file_after_stop = result['relay_master_log_file']
             master_log_pos_after_stop = result['exec_master_log_pos']
             result = self.master_status()
@@ -383,22 +391,23 @@ class WMFReplication:
             print('Stopped at master position: {}, slave position {}'.format(master_log_file_after_stop + ':' + str(master_log_pos_after_stop),
                                                                              slave_log_file_after_stop + ':' + str(slave_log_post_after_stop)))
             slave_binlogs = self.connection.execute('SHOW BINARY LOGS')
-            last_gtid_executed = None
+            last_gtid_not_executed = None
             for current_binlog_index in range(slave_binlogs['numrows'] - 1, -1, -1):
                 binlog_file = slave_binlogs['rows'][current_binlog_index][0]
                 events = self.connection.execute('SHOW BINLOG EVENTS IN \'{}\''.format(binlog_file))
 
-                for event in events['rows']:
-                    if event[1] >= slave_log_post_after_stop:
-                        break  # we have reached the end of the events replicated
-                    if event[2] == 'Gtid' and event[5].startswith('BEGIN GTID'):
-                        last_gtid_executed = event[5]
-                if last_gtid_executed is not None:
+                for event_row in range(len(events['rows']) - 1, -1, -1):
+                    if events['rows'][event_row][2] == 'Gtid' and events['rows'][event_row][5].startswith('BEGIN GTID'):
+                        m = re.search('BEGIN GTID ([0-9]+)\-([0-9]+)\-([0-9]+)$', events['rows'][event_row][5])
+                        next_event = str(int(m.group(3)) + 1)
+                        last_gtid_not_executed = re.sub('([0-9]+)$', next_event, events['rows'][event_row][5])
+                        break
+                if last_gtid_not_executed is not None:
                     break
-            if last_gtid_executed is None:
+            if last_gtid_not_executed is None:
                 self.restore_replication_status(new_master_replication, slave_status, start_if_stopped)
                 return {'success': False, 'errno': -1, 'errmsg': 'Failed to find a usable GTID on the current instance'}
-            print('Last GTID executed: {}'.format(last_gtid_executed))
+            print('Last GTID not executed: {}'.format(last_gtid_not_executed))
 
             master_binlogs = new_master.execute('SHOW BINARY LOGS')
             found_master_binlog_file = None
@@ -407,10 +416,10 @@ class WMFReplication:
                 binlog_file = master_binlogs['rows'][current_binlog_index][0]
                 events = new_master.execute('SHOW BINLOG EVENTS IN \'{}\''.format(binlog_file))
 
-                for event in events['rows']:
-                    if event[2] == 'Gtid' and event[5] == last_gtid_executed:
-                        found_master_binlog_file = event[0]
-                        found_master_binlog_pos = event[1]
+                for event_row in range(len(events['rows']) - 1, -1, -1):
+                    if events['rows'][event_row][2] == 'Gtid' and events['rows'][event_row][5] == last_gtid_not_executed:
+                        found_master_binlog_file = events['rows'][event_row][0]
+                        found_master_binlog_pos = events['rows'][event_row][1]
                         print('Position found on the master at: {}:{}'.format(found_master_binlog_file, str(found_master_binlog_pos)))
                         break
                 if found_master_binlog_file is not None:
