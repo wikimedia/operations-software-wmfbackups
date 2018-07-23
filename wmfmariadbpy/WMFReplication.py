@@ -238,7 +238,7 @@ class WMFReplication:
         """
         slaves = []
         result = self.connection.execute('SHOW SLAVE HOSTS')
-        if not result['success'] or result['fields'][1] != 'Host' or result['fields'][2] != 'Port' or result['fields'][0] != 'Server_id':
+        if not result['success'] or result['numrows'] == 0 or result['fields'][1] != 'Host' or result['fields'][2] != 'Port' or result['fields'][0] != 'Server_id':
             return slaves
         for row in result['rows']:
             host = row[1]
@@ -257,14 +257,15 @@ class WMFReplication:
 
     def caught_up_to_master(self, master=None):
         """
-        Checks if replication has cought up to the master (normally after the master stopped
-        replication or is set as read_only). The optional parameters allows to provide a master
-        host explicitly, mainly if we are already connected to it so we can reuse the connection
-        or to force certain connection options, but if none is given, we will auto-discover it.
+        Checks if replication has caught up to the direct master (normally after the master
+        stopped replication or is set as read_only). The optional parameters allows to provide
+        a master host explicitly, mainly if we are already connected to it so we can reuse the
+        connection or to force certain connection options, but if none is given, we will
+        auto-discover it.
         Returns true if the slave caught up, and false if there was any error or there is lag
         between the master and the slave. Note that if writes are ongoing on the master, this
         will be meaningless, as the slave will lag and catch up continuously- use
-        heatbeat_status to check ongoing lag.
+        lag() or heatbeat_status() to check ongoing lag.
         """
         slave_status = self.slave_status()
         if slave_status is None or not slave_status['success']:
@@ -283,6 +284,7 @@ class WMFReplication:
         Returns replication to the original state on both the current host and the master,
         based either on the forced start parameter (start_if_stopped), or on the original
         state (slave_status).
+        Not intended to be used directly, but only when calling move()
         """
         if start_if_stopped:
             self.start_slave()
