@@ -66,6 +66,7 @@ def do_preflight_checks(master_replication, slave_replication, timeout):
 
 def set_master_in_read_only(master_replication):
     print('Setting up original master as read-only')
+    master_replication.connection.execute('COMMIT')  # commit pending transactions
     result = master_replication.connection.execute('SET GLOBAL read_only = 1')
     if not result['success']:
         print('[ERROR]: Could not set the master as read only')
@@ -103,6 +104,7 @@ def set_replica_in_read_write(master_replication, slave_replication):
     slave = slave_replication.connection
     master = master_replication.connection
     print('Setting up replica as read-write')
+    master_replication.connection.execute('COMMIT')  # commit pending transactions
     result = slave.execute('SET GLOBAL read_only = 0')
     if not result['success']:
         print('[ERROR]: Could not set the slave as read write, trying to revert read only on the master back to read-write')
