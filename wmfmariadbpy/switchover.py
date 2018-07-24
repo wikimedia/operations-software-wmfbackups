@@ -208,8 +208,8 @@ def stop_heartbeat(master):
         result = master.execute('SELECT * FROM heartbeat.heartbeat ORDER BY ts DESC LIMIT 1')
         if result['success'] and result['numrows'] == 1:
             print('[WARNING]: Could not find a pt-heartbeat process to kill, using heartbeat table to determine the section')
-            section = result['rows'][0][6]
-            datacenter = result['rows'][0][7]
+            section = str(result['rows'][0][6].decode('ascii'))
+            datacenter = str(result['rows'][0][7].decode('ascii'))
             interval = 1
             socket = '/var/run/mysqld.sock'
             return section, datacenter, interval, socket
