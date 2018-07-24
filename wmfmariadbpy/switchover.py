@@ -11,7 +11,7 @@ import time
 
 # Heartbeat execution line, expected to be found on all masters, and to be run after a master switch
 # Update if operations/puppet:modules/mariadb/manifests/heartbeat.pp changes
-HEARTBEAT_EXEC = '/usr/bin/perl /usr/local/bin/pt-heartbeat-wikimedia --defaults-file=/root/.my.cnf -D heartbeat --shard={0} --datacenter={1} --update --replace --interval={2} --set-vars=binlog_format=STATEMENT -S {3} --daemonize --pid /var/run/pt-heartbeat.pid'
+HEARTBEAT_EXEC = '/usr/bin/perl /usr/local/bin/pt-heartbeat-wikimedia --defaults-file=/dev/null --user=root --host=localhost -D heartbeat --shard={0} --datacenter={1} --update --replace --interval={2} --set-vars=binlog_format=STATEMENT -S {3} --daemonize --pid /var/run/pt-heartbeat.pid'
 
 
 def handle_parameters():
