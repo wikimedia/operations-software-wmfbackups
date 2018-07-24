@@ -9,12 +9,15 @@ import time
 
 
 def handle_parameters():
-    parser = argparse.ArgumentParser()
-    parser.add_argument('master')
-    parser.add_argument('slave')
-    parser.add_argument('--timeout', type=float, default=5.0)
+    parser = argparse.ArgumentParser(description='Performs a master to direct replica switchover in the WMF environment, automating the most error-prone steps. Example usage: switchover.py db1052 db1067')
+    parser.add_argument('master', help='Original master host, in hostname:port format, to be switched from')
+    parser.add_argument('slave', help='Direct replica host, in hostname:port format, to be switched to, and will become the new master')
+    parser.add_argument('--timeout', type=float, default=5.0, help='Timeout in seconds, to wait for several operations before returning an error (STOP SLAVE, etc. It will also mark the maximum amount of lag we can tolerate.')
+    parser.add_argument('--skip-slave-move', type=bool, default=False, help='When set, it does not migrate current master replicas to the new host')
+    parser.add_argument('--only-slave-move', type=bool, default=False, help='When set, it only migrates current master replicas to the new hosts, but does not perform the rest of the operations (read only, replication inversion, etc.)')
+
     options = parser.parse_args()
-    return WMFMariaDB.WMFMariaDB(host=options.master), WMFMariaDB.WMFMariaDB(options.slave), options.timeout
+    return options
 
 
 def do_preflight_checks(master_replication, slave_replication, timeout):
@@ -172,13 +175,21 @@ def move_replicas_to_new_master(master_replication, slave_replication, timeout):
 
 
 def main():
-    (master, slave, timeout) = handle_parameters()
+    options = handle_parameters()
+    master = WMFMariaDB.WMFMariaDB(options.master)
+    slave = WMFMariaDB.WMFMariaDB(options.slave)
+    timeout = options.timeout
     slave_replication = WMFReplication.WMFReplication(slave, timeout)
     master_replication = WMFReplication.WMFReplication(master, timeout)
 
     do_preflight_checks(master_replication, slave_replication, timeout)
 
-    move_replicas_to_new_master(master_replication, slave_replication, timeout)
+    if not options.skip_slave_move:
+        move_replicas_to_new_master(master_replication, slave_replication, timeout)
+
+    if options.only_slave_move:
+        print('SUCCESS: All slaves moved correctly, but not continuing further because --only-slave-move')
+        sys.exit(0)
 
     set_master_in_read_only(master_replication)
 
