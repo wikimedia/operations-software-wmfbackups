@@ -15,6 +15,7 @@ import yaml
 
 DEFAULT_CONFIG_FILE = '/etc/mysql/backups.cnf'
 DEFAULT_THREADS = 18
+DEFAULT_TYPE = 'dump'
 CONCURRENT_BACKUPS = 2
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 3306
@@ -22,13 +23,20 @@ DEFAULT_ROWS = 20000000
 DEFAULT_USER = 'root'
 RETENTION_DAYS = 18
 DEFAULT_BACKUP_DIR = '/srv/tmp'
-ONGOING_BACKUP_DIR = '/srv/backups/ongoing'
-FINAL_BACKUP_DIR = '/srv/backups/latest'
-ARCHIVE_BACKUP_DIR = '/srv/backups/archive'
+ONGOING_LOGICAL_BACKUP_DIR = '/srv/backups/dumps/ongoing'
+FINAL_LOGICAL_BACKUP_DIR = '/srv/backups/dumps/latest'
+ARCHIVE_LOGICAL_BACKUP_DIR = '/srv/backups/dumps/archive'
+ONGOING_RAW_BACKUP_DIR = '/srv/backups/snapshots/ongoing'
+FINAL_RAW_BACKUP_DIR = '/srv/backups/snapshots/latest'
+ARCHIVE_RAW_BACKUP_DIR = '/srv/backups/snapshots/archive'
+
 DATE_FORMAT = '%Y-%m-%d--%H-%M-%S'
 # FIXME: backups will stop working on Jan 1st 2100
 DUMPNAME_REGEX = 'dump\.([a-z0-9\-]+)\.(20\d\d-[01]\d-[0123]\d\--\d\d-\d\d-\d\d)'
+SNAPNAME_REGEX = 'snapshot\.([a-z0-9\-]+)\.(20\d\d-[01]\d-[0123]\d\--\d\d-\d\d-\d\d)'
 DUMPNAME_FORMAT = 'dump.{0}.{1}'  # where 0 is the section and 1 the date
+SNAPNAME_FORMAT = 'snapshot.{0}.{1}'  # where 0 is the section and 1 the date
+
 TLS_TRUSTED_CA = '/etc/ssl/certs/Puppet_Internal_CA.pem'
 
 
@@ -42,16 +50,19 @@ class BackupStatistics:
     user = None
     password = None
     dump_name = None
+    backup_dir = None
 
-    def __init__(self, dump_name, section, source, config):
+    def __init__(self, dump_name, section, type, source, backup_dir, config):
         self.dump_name = dump_name
         self.section = section
         self.source = source
+        self.backup_dir = backup_dir
         self.host = config.get('host', DEFAULT_HOST)
         self.port = config.get('port', DEFAULT_PORT)
         self.database = config['database']
         self.user = config.get('user', DEFAULT_USER)
         self.password = config['password']
+        self.type = type
 
     def start(self):
         pass
@@ -63,6 +74,9 @@ class BackupStatistics:
         pass
 
     def finish(self):
+        pass
+
+    def delete(self):
         pass
 
 
@@ -106,10 +120,10 @@ class DatabaseBackupStatistics(BackupStatistics):
                 host = socket.getfqdn()
                 query = "INSERT INTO backups (name, status, section, source, host, type," \
                         "start_date, end_date) " \
-                        "VALUES (%s, 'ongoing', %s, %s, %s, 'dump', now(), NULL)"
+                        "VALUES (%s, 'ongoing', %s, %s, %s, %s, now(), NULL)"
                 try:
                     result = cursor.execute(query, (self.dump_name, self.section, self.source,
-                                            host))
+                                            host, self.type))
                 except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
                     logger.error('A MySQL error occurred while trying to insert the entry '
                                  'for the new backup')
@@ -118,7 +132,7 @@ class DatabaseBackupStatistics(BackupStatistics):
                     logger.error('We could not store the information on the database')
                     return False
                 db.commit()
-            elif status in ('finished', 'failed'):
+            elif status in ('finished', 'failed', 'deleted'):
                 query = "SELECT id, status FROM backups WHERE name = %s"
                 try:
                     result = cursor.execute(query, (self.dump_name,))
@@ -158,10 +172,64 @@ class DatabaseBackupStatistics(BackupStatistics):
 
     def gather_metrics(self):
         """
-        Gathers the file name list and sizes for the generated files and stores it on the given
-        statistics mysql database. Not yet implemented.
+        Gathers the file name list, last modification and sizes for the generated files
+        and stores it on the given statistics mysql database.
         """
-        pass
+        logger = logging.getLogger('backup')
+        # Find the completed backup db entry
+        try:
+            db = pymysql.connect(host=self.host, port=self.port, database=self.database,
+                                 user=self.user, password=self.password,
+                                 ssl={'ca': TLS_TRUSTED_CA})
+        except (pymysql.err.OperationalError):
+            logger.exception('We could not connect to {} to store the stats'.format(self.host))
+            return False
+        with db.cursor(pymysql.cursors.DictCursor) as cursor:
+            query = "SELECT id, status FROM backups WHERE name = %s"
+            try:
+                result = cursor.execute(query, (self.dump_name,))
+            except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                logger.error('A MySQL error occurred while finding the entry for the '
+                             'backup')
+                return False
+            if result is None:
+                logger.error('We could not update the database backup statistics server')
+                return False
+            data = cursor.fetchall()
+            if len(data) != 1:
+                logger.error('We could not find the existing statistics for the finished '
+                             'dump')
+                return False
+            backup_id = str(data[0]['id'])
+
+        total_size = 0
+        # Insert the backup file list
+        for file in sorted(os.listdir(self.backup_dir)):
+            name = file
+            statinfo = os.stat(os.path.join(self.backup_dir, file))
+            size = statinfo.st_size
+            total_size += size
+            time = statinfo.st_mtime
+            # TODO: Identify which object this files corresponds to and record it on
+            #       backup_objects
+            with db.cursor(pymysql.cursors.DictCursor) as cursor:
+                query = "INSERT INTO backup_files VALUES (%s, %s, %s, FROM_UNIXTIME(%s), NULL)"
+                try:
+                    result = cursor.execute(query, (backup_id, name, size, time))
+                except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                    logger.error('A MySQL error occurred while inserting the backup '
+                                 'file details')
+                    return False
+        # Update the total backup size
+        with db.cursor(pymysql.cursors.DictCursor) as cursor:
+            query = "UPDATE backups SET total_size = %s WHERE id = %s"
+            try:
+                result = cursor.execute(query, (total_size, backup_id))
+            except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                logger.error('A MySQL error occurred while updating the total backup size')
+                return False
+        db.commit()
+        return True
 
     def start(self):
         self.set_status('ongoing')
@@ -171,6 +239,9 @@ class DatabaseBackupStatistics(BackupStatistics):
 
     def finish(self):
         self.set_status('finished')
+
+    def delete(self):
+        self.set_status('deleted')
 
 
 def get_mydumper_cmd(name, config):
@@ -183,9 +254,9 @@ def get_mydumper_cmd(name, config):
     # check parameters better to avoid unintended effects
     cmd = ['/usr/bin/mydumper']
     cmd.extend(['--compress', '--events', '--triggers', '--routines'])
-    backup_dir = config.get('backup_dir', ONGOING_BACKUP_DIR)
+    backup_dir = config.get('backup_dir', ONGOING_LOGICAL_BACKUP_DIR)
 
-    log_file = os.path.join(backup_dir, 'log.{}'.format(name))
+    log_file = os.path.join(backup_dir, 'dump_log.{}'.format(name))
     cmd.extend(['--logfile', log_file])
     formatted_date = datetime.datetime.now().strftime(DATE_FORMAT)
     dump_name = DUMPNAME_FORMAT.format(name, formatted_date)
@@ -210,6 +281,97 @@ def get_mydumper_cmd(name, config):
     return (cmd, dump_name, log_file)
 
 
+def get_xtrabackup_cmd(name, config):
+    """
+    Given a config, returns a command line for mydumper, the name
+    of the expected snapshot, and the log path.
+    """
+    cmd = ['/opt/wmf-mariadb101/bin/mariabackup']
+    cmd.extend(['--backup'])
+    backup_dir = config.get('backup_dir', ONGOING_RAW_BACKUP_DIR)
+
+    log_file = os.path.join(backup_dir, 'snapshot_log.{}'.format(name))
+    formatted_date = datetime.datetime.now().strftime(DATE_FORMAT)
+    dump_name = SNAPNAME_FORMAT.format(name, formatted_date)
+    output_dir = os.path.join(backup_dir, dump_name)
+    cmd.extend(['--target-dir', output_dir])
+    port = int(config.get('port', DEFAULT_PORT))
+    if port == 3306:
+        data_dir = '/srv/sqldata'
+        socket_dir = '/run/mysqld/mysqld.sock'
+    elif port >= 3311 and port <= 3319:
+        data_dir = '/srv/sqldata.s' + str(port)[-1:]
+        socket_dir = '/run/mysqld/mysqld.s' + str(port)[-1:] + '.sock'
+    elif port == 3320:
+        data_dir = '/srv/sqldata.x1'
+        socket_dir = '/run/mysqld/mysqld.x1.sock'
+    else:
+        data_dir = '/srv/sqldata.m' + str(port)[-1:]
+        socket_dir = '/run/mysqld/mysqld.m' + str(port)[-1:] + '.sock'
+    cmd.extend(['--datadir', data_dir])
+    cmd.extend(['--socket', socket_dir])
+    if 'regex' in config and config['regex'] is not None:
+        cmd.extend(['--tables', config['regex']])
+
+    if 'user' in config:
+        cmd.extend(['--user', config['user']])
+    if 'password' in config:
+        cmd.extend(['--password', config['password']])
+
+    return (cmd, dump_name, log_file)
+
+
+def snapshot(name, config, rotate):
+    """
+    Perform a snapshot of the given instance,
+    with the given settings. Once finished successfully, consolidate the
+    number of files if asked, and move it to the "latest" dir. Archive
+    any previous dump of the same name
+    """
+    logger = logging.getLogger('backup')
+    (cmd, snapshot_name, log_file) = get_xtrabackup_cmd(name, config)
+    logger.debug(cmd)
+
+    backup_dir = config.get('backup_dir', ONGOING_RAW_BACKUP_DIR)
+    output_dir = os.path.join(backup_dir, snapshot_name)
+
+    if 'statistics' in config:  # Enable statistics gathering?
+        if config['port'] == 3306:
+            source = config['host']
+        else:
+            source = config['host'] + ':' + str(config['port'])
+        stats = DatabaseBackupStatistics(dump_name=snapshot_name, section=name, type=config['type'],
+                                         config=config['statistics'], backup_dir=output_dir,
+                                         source=source)
+    else:
+        stats = DisabledBackupStatistics()
+
+    stats.start()
+
+    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+    subprocess.Popen.wait(process)
+    out, err = process.communicate()
+
+    # TODO: Handle xtrabackup errors
+
+    # TODO: Backups seems ok, prepare it for recovery and cleanup
+
+    # consolidate it to fewer files
+
+    stats.gather_metrics()  # not sure here or below
+
+    # compress it
+
+    if rotate:
+        # This is not a manual backup, peform rotations
+        # move the old latest one to the archive, and the current as the latest
+        move_dumps(name, FINAL_RAW_BACKUP_DIR, ARCHIVE_RAW_BACKUP_DIR, SNAPNAME_REGEX)
+        os.rename(output_dir, os.path.join(FINAL_RAW_BACKUP_DIR, snapshot_name))
+
+    stats.finish()
+    return 0
+
+
 def logical_dump(name, config, rotate):
     """
     Perform the logical backup of the given instance,
@@ -222,10 +384,18 @@ def logical_dump(name, config, rotate):
     (cmd, dump_name, log_file) = get_mydumper_cmd(name, config)
     logger.debug(cmd)
 
+    backup_dir = config.get('backup_dir', ONGOING_LOGICAL_BACKUP_DIR)
+    output_dir = os.path.join(backup_dir, dump_name)
+    metadata_file_path = os.path.join(output_dir, 'metadata')
+
     if 'statistics' in config:  # Enable statistics gathering?
-        stats = DatabaseBackupStatistics(dump_name=dump_name, section=name,
-                                         config=config['statistics'],
-                                         source=config['host'] + ':' + str(config['port']))
+        if config['port'] == 3306:
+            source = config['host']
+        else:
+            source = config['host'] + ':' + str(config['port'])
+        stats = DatabaseBackupStatistics(dump_name=dump_name, section=name, type=config['type'],
+                                         config=config['statistics'], backup_dir=output_dir,
+                                         source=source)
     else:
         stats = DisabledBackupStatistics()
 
@@ -252,9 +422,6 @@ def logical_dump(name, config, rotate):
         stats.fail()
         return 4
 
-    backup_dir = config.get('backup_dir', ONGOING_BACKUP_DIR)
-    output_dir = os.path.join(backup_dir, dump_name)
-    metadata_file_path = os.path.join(output_dir, 'metadata')
     with open(metadata_file_path, 'r') as metadata_file:
         metadata = metadata_file.read()
     if 'Finished dump at: ' not in metadata:
@@ -270,25 +437,25 @@ def logical_dump(name, config, rotate):
     if rotate:
         # This is not a manual backup, peform rotations
         # move the old latest one to the archive, and the current as the latest
-        move_dumps(name, FINAL_BACKUP_DIR, ARCHIVE_BACKUP_DIR)
-        os.rename(output_dir, os.path.join(FINAL_BACKUP_DIR, dump_name))
+        move_dumps(name, FINAL_LOGICAL_BACKUP_DIR, ARCHIVE_LOGICAL_BACKUP_DIR, DUMPNAME_REGEX)
+        os.rename(output_dir, os.path.join(FINAL_LOGICAL_BACKUP_DIR, dump_name))
 
     stats.finish()
     return 0
 
 
-def move_dumps(name, source, destination):
+def move_dumps(name, source, destination, regex=DUMPNAME_REGEX):
     """
     Move directories (and all its contents) from source to destination
     for all dirs that have the right format (dump.section.date) and
     section matches the given name
     """
     files = os.listdir(source)
+    pattern = re.compile(regex)
     for entry in files:
         path = os.path.join(source, entry)
         if not os.path.isdir(path):
             continue
-        pattern = re.compile(DUMPNAME_REGEX)
         match = pattern.match(entry)
         if match is None:
             continue
@@ -296,24 +463,24 @@ def move_dumps(name, source, destination):
             os.rename(path, os.path.join(destination, entry))
 
 
-def purge_dumps(source, days):
+def purge_dumps(source, days, regex=DUMPNAME_REGEX):
     """
     Remove subdirectories in ARCHIVE_BACKUP_DIR and all its contents for dirs that
     have the right format (dump.section.date) and are older than the given
     number of days.
     """
     files = os.listdir(source)
+    pattern = re.compile(regex)
     for entry in files:
         path = os.path.join(source, entry)
         if not os.path.isdir(path):
             continue
-        pattern = re.compile(DUMPNAME_REGEX)
         match = pattern.match(entry)
         if match is None:
             continue
         timestamp = datetime.datetime.strptime(match.group(2), DATE_FORMAT)
         if (timestamp < (datetime.datetime.now() - datetime.timedelta(days=days)) and
-           timestamp > datetime.datetime(2017, 1, 1)):
+           timestamp > datetime.datetime(2018, 1, 1)):
             shutil.rmtree(path)
 
 
@@ -363,7 +530,8 @@ def archive_databases(source, threads):
 
 def parse_options():
     parser = argparse.ArgumentParser(description=('Create a mysql/mariadb logical backup using '
-                                                  'mydumper. It has 2 modes: Interactive, where '
+                                                  'mydumper or a snapshot using mariabackup.'
+                                                  'It has 2 modes: Interactive, where '
                                                   'options are received from the command line '
                                                   'and non-interactive, where it reads from a '
                                                   'config file and performs several backups'))
@@ -395,6 +563,10 @@ def parse_options():
                         help=('Number of threads to use for exporting. '
                               'Default: {} concurrent threads.').format(DEFAULT_THREADS),
                         default=DEFAULT_THREADS)
+    parser.add_argument('--type',
+                        choices=['dump', 'snapshot'],
+                        help='Backup type: dump or snapshot. Default: {}'.format(DEFAULT_TYPE),
+                        default=DEFAULT_TYPE)
     parser.add_argument('--backup-dir',
                         help=('Directory where the backup will be stored. '
                               'Default: {}.').format(DEFAULT_BACKUP_DIR),
@@ -480,6 +652,8 @@ def parse_config_file(config_path):
         default_options['threads'] = DEFAULT_THREADS
     if 'port' not in default_options:
         default_options['port'] = DEFAULT_PORT
+    if 'type' not in default_options:
+        default_options['type'] = DEFAULT_TYPE
 
     del default_options['sections']
 
@@ -508,18 +682,29 @@ def main():
         result = dict()
         backup_pool = ThreadPool(CONCURRENT_BACKUPS)
         for section, section_config in config.items():
-            result[section] = backup_pool.apply_async(logical_dump, (section, section_config, True))
+            if section_config['type'] == 'dump':
+                result[section] = backup_pool.apply_async(logical_dump,
+                                                          (section, section_config, True))
+            else:
+                result[section] = backup_pool.apply_async(snapshot,
+                                                          (section, section_config, True))
         backup_pool.close()
         backup_pool.join()
 
-        purge_dumps(ARCHIVE_BACKUP_DIR, RETENTION_DAYS)
+        if section_config['type'] == 'dump':
+            purge_dumps(ARCHIVE_LOGICAL_BACKUP_DIR, RETENTION_DAYS, DUMPNAME_REGEX)
+        else:
+            purge_dumps(ARCHIVE_RAW_BACKUP_DIR, RETENTION_DAYS, SNAPNAME_REGEX)
 
         sys.exit(result[max(result, key=lambda key: result[key].get())].get())
 
     else:
         # a section name was given, only dump that one,
         # but perform no rotation
-        result = logical_dump(options['section'], options, False)
+        if options['type'] == 'dump':
+            result = logical_dump(options['section'], options, False)
+        else:
+            result = snapshot(options['section'], options, False)
         if 0 == result:
             logger.info('Backup {} generated correctly.'.format(options['section']))
         else:
