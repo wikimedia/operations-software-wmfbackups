@@ -1,715 +1,426 @@
 #!/usr/bin/python3
 
 import argparse
-import datetime
-import logging
+import base64
 import os
-import pymysql
+import os.path
 import re
-import shutil
-import socket
-import subprocess
-import sys
-from multiprocessing.pool import ThreadPool
-import yaml
+import time
 
-DEFAULT_CONFIG_FILE = '/etc/mysql/backups.cnf'
-DEFAULT_THREADS = 18
-DEFAULT_TYPE = 'dump'
-CONCURRENT_BACKUPS = 2
-DEFAULT_HOST = 'localhost'
-DEFAULT_PORT = 3306
-DEFAULT_ROWS = 20000000
-DEFAULT_USER = 'root'
-RETENTION_DAYS = 45
-DEFAULT_BACKUP_DIR = '/srv/tmp'
-ONGOING_LOGICAL_BACKUP_DIR = '/srv/backups/dumps/ongoing'
-FINAL_LOGICAL_BACKUP_DIR = '/srv/backups/dumps/latest'
-ARCHIVE_LOGICAL_BACKUP_DIR = '/srv/backups/dumps/archive'
-ONGOING_RAW_BACKUP_DIR = '/srv/backups/snapshots/ongoing'
-FINAL_RAW_BACKUP_DIR = '/srv/backups/snapshots/latest'
-ARCHIVE_RAW_BACKUP_DIR = '/srv/backups/snapshots/archive'
-
-DATE_FORMAT = '%Y-%m-%d--%H-%M-%S'
-# FIXME: backups will stop working on Jan 1st 2100
-DUMPNAME_REGEX = 'dump\.([a-z0-9\-]+)\.(20\d\d-[01]\d-[0123]\d\--\d\d-\d\d-\d\d)'
-SNAPNAME_REGEX = 'snapshot\.([a-z0-9\-]+)\.(20\d\d-[01]\d-[0123]\d\--\d\d-\d\d-\d\d)'
-DUMPNAME_FORMAT = 'dump.{0}.{1}'  # where 0 is the section and 1 the date
-SNAPNAME_FORMAT = 'snapshot.{0}.{1}'  # where 0 is the section and 1 the date
-
-TLS_TRUSTED_CA = '/etc/ssl/certs/Puppet_Internal_CA.pem'
+from CuminExecution import CuminExecution as RemoteExecution
 
 
-class BackupStatistics:
+def option_parse():
     """
-    Virtual class that defines the interface to generate
-    and store the backup statistics.
+    Parses the input parameters and returns them as a list.
     """
-    host = None
-    port = 3306
-    user = None
-    password = None
-    dump_name = None
-    backup_dir = None
+    parser = argparse.ArgumentParser()
+    parser.add_argument("--port", type=int, default=4444)
+    parser.add_argument("--type", choices=['file', 'xtrabackup'], dest='transfer_type',
+                        default='file')
+    parser.add_argument("source")
+    parser.add_argument("target", nargs='+')
 
-    def __init__(self, dump_name, section, type, source, backup_dir, config):
-        self.dump_name = dump_name
-        self.section = section
-        self.source = source
-        self.backup_dir = backup_dir
-        self.host = config.get('host', DEFAULT_HOST)
-        self.port = config.get('port', DEFAULT_PORT)
-        self.database = config['database']
-        self.user = config.get('user', DEFAULT_USER)
-        self.password = config['password']
-        self.type = type
+    compress_group = parser.add_mutually_exclusive_group()
+    compress_group.add_argument('--compress', action='store_true', dest='compress')
+    compress_group.add_argument('--no-compress', action='store_false', dest='compress')
+    parser.set_defaults(compress=True)
 
-    def start(self):
-        pass
+    encrypt_group = parser.add_mutually_exclusive_group()
+    encrypt_group.add_argument('--encrypt', action='store_true', dest='encrypt')
+    encrypt_group.add_argument('--no-encrypt', action='store_false', dest='encrypt')
+    parser.set_defaults(encrypt=True)
 
-    def gather_metrics(self):
-        pass
+    checksum_group = parser.add_mutually_exclusive_group()
+    checksum_group.add_argument('--checksum', action='store_true', dest='checksum')
+    checksum_group.add_argument('--no-checksum', action='store_false', dest='checksum')
+    parser.set_defaults(checksum=True)
 
-    def fail(self):
-        pass
-
-    def finish(self):
-        pass
-
-    def delete(self):
-        pass
-
-
-class DisabledBackupStatistics(BackupStatistics):
-    """
-    Dummy class that does nothing when statistics are requested to be
-    generated and stored.
-    """
-    def __init__(self):
-        pass
+    options = parser.parse_args()
+    source_host = options.source.split(':', 1)[0]
+    source_path = options.source.split(':', 1)[1]
+    target_hosts = []
+    target_paths = []
+    for target in options.target:
+        target_hosts.append(target.split(':', 1)[0])
+        target_paths.append(target.split(':', 1)[1])
+    other_options = {
+        'port': options.port,
+        'type': options.transfer_type,
+        'compress': options.compress,
+        'encrypt': options.encrypt,
+        'checksum': False if options.transfer_type == 'xtrabackup' else options.checksum
+    }
+    return source_host, source_path, target_hosts, target_paths, other_options
 
 
-class DatabaseBackupStatistics(BackupStatistics):
-    """
-    Generates statistics and stored them on a MySQL/MariaDB database over TLS
-    """
+class Transferer(object):
+    def __init__(self, source_host, source_path, target_hosts, target_paths, options={}):
+        self.source_host = source_host
+        self.source_path = source_path
+        self.target_hosts = target_hosts
+        self.target_paths = target_paths
+        self.options = options
 
-    def set_status(self, status):
+        self.remote_executor = RemoteExecution()
+
+        self.source_is_dir = False
+        self.source_is_socket = False
+        self.original_size = 0
+        self.checksum = None
+
+        self._password = None
+        self.cipher = 'chacha20'
+        self.buffer_size = 8
+
+    def run_command(self, host, command):
+        return self.remote_executor.run(host, command)
+
+    @property
+    def is_xtrabackup(self):
+        return self.options['type'] == 'xtrabackup'
+
+    def is_dir(self, host, path):
+        command = ['/bin/bash', '-c', r'"[ -d "{}" ]"'.format(path)]
+        result = self.run_command(host, command)
+        return not result.returncode
+
+    def is_socket(self, host, path):
+        command = ['/bin/bash', '-c', r'"[ -S "{}" ]"'.format(path)]
+        result = self.run_command(host, command)
+        return not result.returncode
+
+    def file_exists(self, host, path):
         """
-        Updates or inserts the backup entry at the backup statistics
-        database, with the given status (ongoing, finished, failed).
-        If it is ongoing, it is considered a new entry (in which case,
-        section and source are required parameters.
-        Otherwise, it supposes an existing entry with the given name
-        exists, and it tries to update it.
-        Returns True if it was successful, False otherwise.
+        Returns true if there is a file or a directory with such path on the remote
+        host given
         """
-        logger = logging.getLogger('backup')
-        try:
-            db = pymysql.connect(host=self.host, port=self.port, database=self.database,
-                                 user=self.user, password=self.password,
-                                 ssl={'ca': TLS_TRUSTED_CA})
-        except (pymysql.err.OperationalError):
-            logger.exception('We could not connect to {} to store the stats'.format(self.host))
-            return False
-        with db.cursor(pymysql.cursors.DictCursor) as cursor:
-            if status == 'ongoing':
-                if self.section is None or self.source is None:
-                    logger.error('A new backup requires a section and a source parameters')
-                    return False
-                host = socket.getfqdn()
-                query = "INSERT INTO backups (name, status, section, source, host, type," \
-                        "start_date, end_date) " \
-                        "VALUES (%s, 'ongoing', %s, %s, %s, %s, now(), NULL)"
-                try:
-                    result = cursor.execute(query, (self.dump_name, self.section, self.source,
-                                            host, self.type))
-                except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
-                    logger.error('A MySQL error occurred while trying to insert the entry '
-                                 'for the new backup')
-                    return False
-                if result is None:
-                    logger.error('We could not store the information on the database')
-                    return False
-                db.commit()
-            elif status in ('finished', 'failed', 'deleted'):
-                query = "SELECT id, status FROM backups WHERE name = %s"
-                try:
-                    result = cursor.execute(query, (self.dump_name,))
-                except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
-                    logger.error('A MySQL error occurred while finding the entry for the '
-                                 'backup')
-                    return False
-                if result is None:
-                    logger.error('We could not update the database backup statistics server')
-                    return False
-                data = cursor.fetchall()
-                if len(data) != 1:
-                    logger.error('We could not find the existing statistics for the finished '
-                                 'dump')
-                    return False
-                elif data[0]['status'] == status:
-                    logger.warning('We are already on the {} state'.format(status))
-                    return True
-                else:
-                    backup_id = str(data[0]['id'])
-                    query = "UPDATE backups SET status = %s, end_date = now() WHERE id = %s"
-                    try:
-                        result = cursor.execute(query, (status, backup_id))
-                    except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
-                        logger.error('A MySQL error occurred while trying to update the '
-                                     'entry for the new backup')
-                        return False
+        command = ['/bin/bash', '-c', r'"[ -a "{}" ]"'.format(path)]
+        result = self.run_command(host, command)
+        return not result.returncode
 
-                    if result is None:
-                        logger.error('We could not set as finished the current dump')
-                        return False
-                    db.commit()
-                    return True
+    def calculate_checksum(self, host, path):
+        hash_executable = '/usr/bin/md5sum'
+        parent_dir = os.path.normpath(os.path.join(path, '..'))
+        basename = os.path.basename(os.path.normpath(path))
+        if self.source_is_dir:
+            command = ['/bin/bash', '-c',
+                       '"cd {} && /usr/bin/find {} -type f -exec {} {}"'
+                       .format(parent_dir, basename, hash_executable, r'\{\} \;')]
+        else:
+            command = ['/bin/bash', '-c', r'"cd {} && {} {}"'
+                       .format(parent_dir, hash_executable, basename)]
+        result = self.run_command(host, command)
+        if result.returncode != 0:
+            raise Exception('md5sum execution failed')
+        return result.stdout
+
+    def has_available_disk_space(self, host, path, size):
+        command = ['/bin/bash', '-c',
+                   r'"df --block-size=1 --output=avail {} | /usr/bin/tail -n 1"'.format(path)]
+        result = self.run_command(host, command)
+        if result.returncode != 0:
+            raise Exception('df execution failed')
+        return int(result.stdout) > size
+
+    def disk_usage(self, host, path, is_xtrabackup=False):
+        """
+        Returns the size used on the filesystem by the file path on the given host,
+        or the aggregated size of all the files inside path and its subdirectories
+        """
+        if is_xtrabackup:
+            path = self.get_datadir_from_socket(path)
+        command = ['/usr/bin/du', '--bytes', '--summarize', '{}'.format(path)]
+        result = self.run_command(host, command)
+        if result.returncode != 0:
+            raise Exception('du execution failed')
+        return int(result.stdout.split()[0])
+
+    def dir_is_empty(self, directory, host):
+        """
+        Returns true the given directory path is empty, false if it contains something
+        (a file, a dir).
+        If it is not a directory or does not exist, the result is undefined.
+        """
+        command = ['/bin/bash', '-c', r'"[ -z \"$(/bin/ls -A {})\" ]"'.format(directory)]
+        result = self.run_command(host, command)
+        return result.returncode == 0
+
+    @property
+    def compress_command(self):
+        if self.options['compress']:
+            if self.source_is_dir or self.is_xtrabackup:
+                compress_command = '| /usr/bin/pigz -c'
             else:
-                logger.error('Invalid status: {}'.format(status))
-                return False
+                compress_command = '/usr/bin/pigz -c'
+        else:
+            if self.source_is_dir or self.source_is_socket:
+                compress_command = ''
+            else:
+                compress_command = '/bin/cat'
 
-    def gather_metrics(self):
+        return compress_command
+
+    @property
+    def decompress_command(self):
+        if self.options['compress']:
+            decompress_command = '| /usr/bin/pigz -c -d'
+        else:
+            decompress_command = ''
+
+        return decompress_command
+
+    def netcat_send_command(self, target_host):
+        netcat_send_command = '| /bin/nc -q 0 {} {}'.format(target_host, self.options['port'])
+
+        return netcat_send_command
+
+    @property
+    def netcat_listen_command(self):
+        netcat_listen_command = '/bin/nc -l -p {} {} {}'.format(self.options['port'],
+                                                                self.decrypt_command,
+                                                                self.decompress_command)
+
+        return netcat_listen_command
+
+    @property
+    def tar_command(self):
+        return '/bin/tar cf -'
+
+    @property
+    def untar_command(self):
+        return '| /bin/tar xf -'
+
+    def get_datadir_from_socket(self, socket):
+        if socket.endswith('mysqld.sock'):
+            datadir = '/srv/sqldata'
+        elif re.match(r'.*mysqld\.[smx]\d\.sock', socket):
+            datadir = '/srv/sqldata.' + socket[-7:-5]
+        else:
+            raise Exception('the given socket does not have a known format')
+        return datadir
+
+    @property
+    def xtrabackup_command(self):
+        user = 'root'
+        threads = 16
+        socket = self.source_path
+        datadir = self.get_datadir_from_socket(socket)
+        xtrabackup_command = ('/opt/wmf-mariadb101/bin/mariabackup --backup --target-dir /tmp '
+                              '--user {} --socket={} --close-files --datadir={} --parallel={} '
+                              '--stream=xbstream --slave-info --skip-ssl'
+                              ).format(user, socket, datadir, str(threads))
+        return xtrabackup_command
+
+    @property
+    def mbstream_command(self):
+        return '| /opt/wmf-mariadb101/bin/mbstream -x'
+
+    @property
+    def password(self):
+        if self._password is None:
+            self._password = base64.b64encode(os.urandom(24)).decode('utf-8')
+
+        return self._password
+
+    @property
+    def encrypt_command(self):
+        if self.options['encrypt']:
+            encrypt_command = ('| /usr/bin/openssl enc -{}'
+                               ' -pass pass:{} -bufsize {}').format(self.cipher,
+                                                                    self.password,
+                                                                    self.buffer_size)
+        else:
+            encrypt_command = ''
+
+        return encrypt_command
+
+    @property
+    def decrypt_command(self):
+        if self.options['encrypt']:
+            decrypt_command = ('| /usr/bin/openssl enc -d -{}'
+                               ' -pass pass:{} -bufsize {}').format(self.cipher,
+                                                                    self.password,
+                                                                    self.buffer_size)
+        else:
+            decrypt_command = ''
+
+        return decrypt_command
+
+    def copy_to(self, target_host, target_path):
         """
-        Gathers the file name list, last modification and sizes for the generated files
-        and stores it on the given statistics mysql database.
+        Copies the source file or dir on the source host to 'target_host'.
+        'target_path' is assumed to be a *directory* and the source file or
+        directory will be copied inside.
         """
-        logger = logging.getLogger('backup')
-        # Find the completed backup db entry
+
+        if self.is_xtrabackup:
+            src_command = ['/bin/bash', '-c', r'"{} {} {} {}"'
+                           .format(self.xtrabackup_command, self.compress_command,
+                                   self.encrypt_command, self.netcat_send_command(target_host))]
+            dst_command = ['/bin/bash', '-c', r'"cd {} && {} {}"'
+                           .format(target_path, self.netcat_listen_command,
+                                   self.mbstream_command)]
+        elif self.source_is_dir:
+            source_parent_dir = os.path.normpath(os.path.join(self.source_path, '..'))
+            source_basename = os.path.basename(os.path.normpath(self.source_path))
+            src_command = ['/bin/bash', '-c', r'"cd {} && {} {} {} {} {}"'
+                           .format(source_parent_dir, self.tar_command,
+                                   source_basename, self.compress_command, self.encrypt_command,
+                                   self.netcat_send_command(target_host))]
+
+            dst_command = ['/bin/bash', '-c', r'"cd {} && {} {}"'
+                           .format(target_path, self.netcat_listen_command, self.untar_command)]
+        else:
+            src_command = ['/bin/bash', '-c', r'"{} < {} {} {}"'
+                           .format(self.compress_command, self.source_path, self.encrypt_command,
+                                   self.netcat_send_command(target_host))]
+
+            final_file = os.path.join(os.path.normpath(target_path),
+                                      os.path.basename(self.source_path))
+            dst_command = ['/bin/bash', '-c', r'"{} > {}"'
+                           .format(self.netcat_listen_command, final_file)]
+
+        job = self.remote_executor.start_job(target_host, dst_command)
+        time.sleep(1)  # FIXME: Work on a better way to wait for nc to be listening
+        result = self.run_command(self.source_host, src_command)
+        if result.returncode != 0:
+            self.remote_executor.kill_job(target_host, job)
+        else:
+            self.remote_executor.wait_job(target_host, job)
+        return result.returncode
+
+    def open_firewall(self, target_host):
+        command = ['/sbin/iptables', '-A', 'INPUT', '-p', 'tcp', '-s',
+                   '{}'.format(self.source_host),
+                   '--dport', '{}'.format(self.options['port']),
+                   '-j', 'ACCEPT']
+        result = self.run_command(target_host, command)
+        if result.returncode != 0:
+            raise Exception('iptables execution failed')
+
+    def close_firewall(self, target_host):
+        command = ['/sbin/iptables', '-D', 'INPUT', '-p', 'tcp', '-s',
+                   '{}'.format(self.source_host),
+                   '--dport', '{}'.format(self.options['port']),
+                   '-j', 'ACCEPT']
+        result = self.run_command(target_host, command)
+        return result.returncode
+
+    def sanity_checks(self):
+        self.source_path = os.path.normpath(self.source_path)
+        if not self.file_exists(self.source_host, self.source_path):
+            raise ValueError("The specified source path {} doesn't exist on {}"
+                             .format(self.source_path, self.source_host))
+        self.original_size = self.disk_usage(self.source_host, self.source_path,
+                                             self.is_xtrabackup)
+        for target_host, target_path in zip(self.target_hosts, self.target_paths):
+            if not self.file_exists(target_host, target_path):
+                raise ValueError("The specified target path {} doesn't exist on {}"
+                                 .format(target_path, target_host))
+            if self.is_xtrabackup:
+                if not self.dir_is_empty(target_path, target_host):
+                    raise ValueError("The final target path {} is not empty on {}."
+                                     .format(target_path, target_host))
+            else:
+                target_final_path = os.path.join(os.path.normpath(target_path),
+                                                 os.path.basename(self.source_path))
+                if self.file_exists(target_host, target_final_path):
+                    raise ValueError("The final target path {} already exists on {}."
+                                     .format(target_final_path, target_host))
+            if not self.has_available_disk_space(target_host, target_path,
+                                                 self.original_size):
+                raise ValueError("{} doesn't have enough space on {}"
+                                 .format(target_host, target_path))
+
+        if self.is_xtrabackup:
+            self.source_is_socket = self.is_socket(self.source_host, self.source_path)
+            if not self.source_is_socket:
+                raise ValueError("The specified source path {} is not a valid socket"
+                                 .format(self.source_path))
+        else:
+            self.source_is_dir = self.is_dir(self.source_host, self.source_path)
+
+        if self.options['checksum']:
+            self.checksum = self.calculate_checksum(self.source_host, self.source_path)
+
+    def after_transfer_checks(self, result, target_host, target_path):
+        # post-transfer checks
+        if result != 0:
+            print('ERROR: Copy from {}:{} to {}:{} failed'
+                  .format(self.source_host, self.source_path, target_host, target_path))
+            return 1
+
+        if self.is_xtrabackup:
+            target_final_path = os.path.normpath(target_path)
+            check_path = os.path.join(os.path.normpath(target_path), 'xtrabackup_info')
+        else:
+            target_final_path = os.path.join(os.path.normpath(target_path),
+                                             os.path.basename(self.source_path))
+            check_path = target_final_path
+        if not self.file_exists(target_host, check_path):
+            print(('ERROR: file was not found on the target path {} after transfer'
+                   ' to {}').format(check_path, target_host))
+            return 2
+        final_size = self.disk_usage(target_host, target_final_path)
+        if self.original_size != final_size:
+            print('WARNING: Original size is {} but transferred size is {} for'
+                  ' copy to {}'.format(self.original_size, final_size, target_host))
+        if self.options['checksum']:
+            target_checksum = self.calculate_checksum(target_host, target_final_path)
+            if self.checksum != target_checksum:
+                print('ERROR: Original checksum {} on {} is different than checksum {}'
+                      ' on {}'.format(self.checksum, self.source_host, target_checksum,
+                                      target_host))
+                return 3
+            else:
+                print(('Checksum of all original files on {} and the transmitted ones'
+                       ' on {} match.').format(self.source_host, target_host))
+        print('{} bytes correctly transferred from {} to {}'
+              .format(final_size, self.source_host, target_host))
+        return 0
+
+    def run(self):
+        """
+        Transfers the file (or the directory and all its contents) given on
+        source_path from the source_target machine to all target_hosts hosts, as
+        fast as possible. Returns an array of exit codes, one per target host,
+        indicating if the transfer was successful (0) or not (<> 0).
+        """
+        # pre-execution sanity checks
         try:
-            db = pymysql.connect(host=self.host, port=self.port, database=self.database,
-                                 user=self.user, password=self.password,
-                                 ssl={'ca': TLS_TRUSTED_CA})
-        except (pymysql.err.OperationalError):
-            logger.exception('We could not connect to {} to store the stats'.format(self.host))
-            return False
-        with db.cursor(pymysql.cursors.DictCursor) as cursor:
-            query = "SELECT id, status FROM backups WHERE name = %s"
-            try:
-                result = cursor.execute(query, (self.dump_name,))
-            except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
-                logger.error('A MySQL error occurred while finding the entry for the '
-                             'backup')
-                return False
-            if result is None:
-                logger.error('We could not update the database backup statistics server')
-                return False
-            data = cursor.fetchall()
-            if len(data) != 1:
-                logger.error('We could not find the existing statistics for the finished '
-                             'dump')
-                return False
-            backup_id = str(data[0]['id'])
-
-        total_size = 0
-        # Insert the backup file list
-        for file in sorted(os.listdir(self.backup_dir)):
-            name = file
-            statinfo = os.stat(os.path.join(self.backup_dir, file))
-            size = statinfo.st_size
-            total_size += size
-            time = statinfo.st_mtime
-            # TODO: Identify which object this files corresponds to and record it on
-            #       backup_objects
-            with db.cursor(pymysql.cursors.DictCursor) as cursor:
-                query = "INSERT INTO backup_files VALUES (%s, %s, %s, FROM_UNIXTIME(%s), NULL)"
-                try:
-                    result = cursor.execute(query, (backup_id, name, size, time))
-                except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
-                    logger.error('A MySQL error occurred while inserting the backup '
-                                 'file details')
-                    return False
-        # Update the total backup size
-        with db.cursor(pymysql.cursors.DictCursor) as cursor:
-            query = "UPDATE backups SET total_size = %s WHERE id = %s"
-            try:
-                result = cursor.execute(query, (total_size, backup_id))
-            except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
-                logger.error('A MySQL error occurred while updating the total backup size')
-                return False
-        db.commit()
-        return True
-
-    def start(self):
-        self.set_status('ongoing')
-
-    def fail(self):
-        self.set_status('failed')
-
-    def finish(self):
-        self.set_status('finished')
-
-    def delete(self):
-        self.set_status('deleted')
-
-
-def get_mydumper_cmd(name, config):
-    """
-    Given a config, returns a command line for mydumper, the name
-    of the expected dump, and the log path.
-    """
-    # FIXME: even if there is not privilege escalation (everybody can run
-    # mydumper and parameters are gotten from a localhost file),
-    # check parameters better to avoid unintended effects
-    cmd = ['/usr/bin/mydumper']
-    cmd.extend(['--compress', '--events', '--triggers', '--routines'])
-    backup_dir = config.get('backup_dir', ONGOING_LOGICAL_BACKUP_DIR)
-
-    log_file = os.path.join(backup_dir, 'dump_log.{}'.format(name))
-    cmd.extend(['--logfile', log_file])
-    formatted_date = datetime.datetime.now().strftime(DATE_FORMAT)
-    dump_name = DUMPNAME_FORMAT.format(name, formatted_date)
-    output_dir = os.path.join(backup_dir, dump_name)
-    cmd.extend(['--outputdir', output_dir])
-
-    rows = int(config.get('rows', DEFAULT_ROWS))
-    cmd.extend(['--rows', str(rows)])
-    cmd.extend(['--threads', str(config['threads'])])
-    host = config.get('host', DEFAULT_HOST)
-    cmd.extend(['--host', host])
-    port = int(config.get('port', DEFAULT_PORT))
-    cmd.extend(['--port', str(port)])
-    if 'regex' in config and config['regex'] is not None:
-        cmd.extend(['--regex', config['regex']])
-
-    if 'user' in config:
-        cmd.extend(['--user', config['user']])
-    if 'password' in config:
-        cmd.extend(['--password', config['password']])
-
-    return (cmd, dump_name, log_file)
-
-
-def get_xtrabackup_cmd(name, config):
-    """
-    Given a config, returns a command line for mydumper, the name
-    of the expected snapshot, and the log path.
-    """
-    cmd = ['/opt/wmf-mariadb101/bin/mariabackup']
-    cmd.extend(['--backup'])
-    backup_dir = config.get('backup_dir', ONGOING_RAW_BACKUP_DIR)
-
-    log_file = os.path.join(backup_dir, 'snapshot_log.{}'.format(name))
-    formatted_date = datetime.datetime.now().strftime(DATE_FORMAT)
-    dump_name = SNAPNAME_FORMAT.format(name, formatted_date)
-    output_dir = os.path.join(backup_dir, dump_name)
-    cmd.extend(['--target-dir', output_dir])
-    port = int(config.get('port', DEFAULT_PORT))
-    if port == 3306:
-        data_dir = '/srv/sqldata'
-        socket_dir = '/run/mysqld/mysqld.sock'
-    elif port >= 3311 and port <= 3319:
-        data_dir = '/srv/sqldata.s' + str(port)[-1:]
-        socket_dir = '/run/mysqld/mysqld.s' + str(port)[-1:] + '.sock'
-    elif port == 3320:
-        data_dir = '/srv/sqldata.x1'
-        socket_dir = '/run/mysqld/mysqld.x1.sock'
-    else:
-        data_dir = '/srv/sqldata.m' + str(port)[-1:]
-        socket_dir = '/run/mysqld/mysqld.m' + str(port)[-1:] + '.sock'
-    cmd.extend(['--datadir', data_dir])
-    cmd.extend(['--socket', socket_dir])
-    if 'regex' in config and config['regex'] is not None:
-        cmd.extend(['--tables', config['regex']])
-
-    if 'user' in config:
-        cmd.extend(['--user', config['user']])
-    if 'password' in config:
-        cmd.extend(['--password', config['password']])
-
-    return (cmd, dump_name, log_file)
-
-
-def snapshot(name, config, rotate):
-    """
-    Perform a snapshot of the given instance,
-    with the given settings. Once finished successfully, consolidate the
-    number of files if asked, and move it to the "latest" dir. Archive
-    any previous dump of the same name
-    """
-    logger = logging.getLogger('backup')
-    (cmd, snapshot_name, log_file) = get_xtrabackup_cmd(name, config)
-    logger.debug(cmd)
-
-    backup_dir = config.get('backup_dir', ONGOING_RAW_BACKUP_DIR)
-    output_dir = os.path.join(backup_dir, snapshot_name)
-
-    if 'statistics' in config:  # Enable statistics gathering?
-        if config['port'] == 3306:
-            source = config['host']
-        else:
-            source = config['host'] + ':' + str(config['port'])
-        stats = DatabaseBackupStatistics(dump_name=snapshot_name, section=name, type=config['type'],
-                                         config=config['statistics'], backup_dir=output_dir,
-                                         source=source)
-    else:
-        stats = DisabledBackupStatistics()
-
-    stats.start()
-
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    subprocess.Popen.wait(process)
-    out, err = process.communicate()
-
-    # TODO: Handle xtrabackup errors
-
-    # TODO: Backups seems ok, prepare it for recovery and cleanup
-
-    # consolidate it to fewer files
-
-    stats.gather_metrics()  # not sure here or below
-
-    # compress it
-
-    if rotate:
-        # This is not a manual backup, peform rotations
-        # move the old latest one to the archive, and the current as the latest
-        move_dumps(name, FINAL_RAW_BACKUP_DIR, ARCHIVE_RAW_BACKUP_DIR, SNAPNAME_REGEX)
-        os.rename(output_dir, os.path.join(FINAL_RAW_BACKUP_DIR, snapshot_name))
-
-    stats.finish()
-    return 0
-
-
-def logical_dump(name, config, rotate):
-    """
-    Perform the logical backup of the given instance,
-    with the given settings. Once finished successfully, consolidate the
-    number of files if asked, and move it to the "latest" dir. Archive
-    any previous dump of the same name
-    """
-
-    logger = logging.getLogger('backup')
-    (cmd, dump_name, log_file) = get_mydumper_cmd(name, config)
-    logger.debug(cmd)
-
-    backup_dir = config.get('backup_dir', ONGOING_LOGICAL_BACKUP_DIR)
-    output_dir = os.path.join(backup_dir, dump_name)
-    metadata_file_path = os.path.join(output_dir, 'metadata')
-
-    if 'statistics' in config:  # Enable statistics gathering?
-        if config['port'] == 3306:
-            source = config['host']
-        else:
-            source = config['host'] + ':' + str(config['port'])
-        stats = DatabaseBackupStatistics(dump_name=dump_name, section=name,
-                                         config=config['statistics'], backup_dir=output_dir,
-                                         source=source)
-    else:
-        stats = DisabledBackupStatistics()
-
-    stats.start()
-
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    subprocess.Popen.wait(process)
-    out, err = process.communicate()
-    if len(out) > 0:
-        sys.stdout.buffer.write(out)
-    errors = err.decode("utf-8")
-    if len(errors) > 0:
-        logger.error('The mydumper stderr was not empty')
-        sys.stderr.write(errors)
-
-    # Check backup finished correctly
-    if ' CRITICAL ' in errors:
-        stats.fail()
-        return 3
-
-    with open(log_file, 'r') as output:
-        log = output.read()
-    if ' [ERROR] ' in log:
-        stats.fail()
-        return 4
-
-    with open(metadata_file_path, 'r') as metadata_file:
-        metadata = metadata_file.read()
-    if 'Finished dump at: ' not in metadata:
-        stats.fail()
-        return 5
-
-    # Backups seems ok, start consolidating it to fewer files
-    if 'archive' in config and config['archive']:
-        archive_databases(output_dir, config['threads'])
-
-    stats.gather_metrics()
-
-    if rotate:
-        # This is not a manual backup, peform rotations
-        # move the old latest one to the archive, and the current as the latest
-        move_dumps(name, FINAL_LOGICAL_BACKUP_DIR, ARCHIVE_LOGICAL_BACKUP_DIR, DUMPNAME_REGEX)
-        os.rename(output_dir, os.path.join(FINAL_LOGICAL_BACKUP_DIR, dump_name))
-
-    stats.finish()
-    return 0
-
-
-def move_dumps(name, source, destination, regex=DUMPNAME_REGEX):
-    """
-    Move directories (and all its contents) from source to destination
-    for all dirs that have the right format (dump.section.date) and
-    section matches the given name
-    """
-    files = os.listdir(source)
-    pattern = re.compile(regex)
-    for entry in files:
-        path = os.path.join(source, entry)
-        if not os.path.isdir(path):
-            continue
-        match = pattern.match(entry)
-        if match is None:
-            continue
-        if name == match.group(1):
-            os.rename(path, os.path.join(destination, entry))
-
-
-def purge_dumps(source, days, regex=DUMPNAME_REGEX):
-    """
-    Remove subdirectories in ARCHIVE_BACKUP_DIR and all its contents for dirs that
-    have the right format (dump.section.date) and are older than the given
-    number of days.
-    """
-    files = os.listdir(source)
-    pattern = re.compile(regex)
-    for entry in files:
-        path = os.path.join(source, entry)
-        if not os.path.isdir(path):
-            continue
-        match = pattern.match(entry)
-        if match is None:
-            continue
-        timestamp = datetime.datetime.strptime(match.group(2), DATE_FORMAT)
-        if (timestamp < (datetime.datetime.now() - datetime.timedelta(days=days)) and
-           timestamp > datetime.datetime(2018, 1, 1)):
-            shutil.rmtree(path)
-
-
-def tar_and_remove(source, name, files):
-
-    cmd = ['/bin/tar']
-    tar_file = os.path.join(source, '{}.gz.tar'.format(name))
-    cmd.extend(['--create', '--remove-files', '--file', tar_file, '--directory', source])
-    cmd.extend(files)
-
-    logger = logging.getLogger('backup')
-    logger.debug(cmd)
-    process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-    subprocess.Popen.wait(process)
-    out, err = process.communicate()
-
-
-def archive_databases(source, threads):
-    """
-    To avoid too many files per backup, archive each database file in
-    separate tar files for given directory "source". The threads
-    parameter allows to control the concurrency (number of threads executing
-    tar in parallel).
-    """
-
-    files = sorted(os.listdir(source))
-
-    schema_files = list()
-    name = None
-    pool = ThreadPool(threads)
-    for item in files:
-        if item.endswith('-schema-create.sql.gz') or item == 'metadata':
-            if schema_files:
-                pool.apply_async(tar_and_remove, (source, name, schema_files))
-                schema_files = list()
-            if item != 'metadata':
-                schema_files.append(item)
-                name = item.replace('-schema-create.sql.gz', '')
-        else:
-            schema_files.append(item)
-    if schema_files:
-        pool.apply_async(tar_and_remove, (source, name, schema_files))
-
-    pool.close()
-    pool.join()
-
-
-def parse_options():
-    parser = argparse.ArgumentParser(description=('Create a mysql/mariadb logical backup using '
-                                                  'mydumper or a snapshot using mariabackup.'
-                                                  'It has 2 modes: Interactive, where '
-                                                  'options are received from the command line '
-                                                  'and non-interactive, where it reads from a '
-                                                  'config file and performs several backups'))
-    parser.add_argument('section',
-                        help=('Section name of the backup. E.g.: "s3", "tendril". '
-                              'If section is set, --config-file is ignored. '
-                              'If it is empty, only config-file options will be used '
-                              'and other command line options will be ignored.'),
-                        nargs='?',
-                        default=None)
-    parser.add_argument('--config-file',
-                        help='Config file to use. By default, {} .'.format(DEFAULT_CONFIG_FILE),
-                        default=DEFAULT_CONFIG_FILE)
-    parser.add_argument('--host',
-                        help='Host to generate the backup from. Default: {}.'.format(DEFAULT_HOST),
-                        default=DEFAULT_HOST)
-    parser.add_argument('--port',
-                        type=int,
-                        help='Port to connect to. Default: {}.'.format(DEFAULT_PORT),
-                        default=DEFAULT_PORT)
-    parser.add_argument('--user',
-                        help='User to connect for backup. Default: {}.'.format(DEFAULT_USER),
-                        default=DEFAULT_USER)
-    parser.add_argument('--password',
-                        help='Password used to connect. Default: empty password.',
-                        default='')
-    parser.add_argument('--threads',
-                        type=int,
-                        help=('Number of threads to use for exporting. '
-                              'Default: {} concurrent threads.').format(DEFAULT_THREADS),
-                        default=DEFAULT_THREADS)
-    parser.add_argument('--type',
-                        choices=['dump', 'snapshot'],
-                        help='Backup type: dump or snapshot. Default: {}'.format(DEFAULT_TYPE),
-                        default=DEFAULT_TYPE)
-    parser.add_argument('--backup-dir',
-                        help=('Directory where the backup will be stored. '
-                              'Default: {}.').format(DEFAULT_BACKUP_DIR),
-                        default=DEFAULT_BACKUP_DIR)
-    parser.add_argument('--rows',
-                        type=int,
-                        help=('Max number of rows to dump per file. '
-                              'Default: {}').format(DEFAULT_ROWS),
-                        default=DEFAULT_ROWS)
-    parser.add_argument('--archive',
-                        action='store_true',
-                        help=('If present, archive each db on its own tar file.'
-                              'Default: Do not archive.'))
-    parser.add_argument('--regex',
-                        help=('Only backup tables matching this regular expression,'
-                              'with format: database.table. Default: all tables'),
-                        default=None)
-    parser.add_argument('--stats-host',
-                        help='Host where the statistics database is.',
-                        default=None)
-    parser.add_argument('--stats-port',
-                        type=int,
-                        help='Port where the statistics database is. Default: {}'
-                        .format(DEFAULT_PORT),
-                        default=DEFAULT_PORT)
-    parser.add_argument('--stats-user',
-                        help='User for the statistics database.',
-                        default=None)
-    parser.add_argument('--stats-password',
-                        help='Password used for the statistics database.',
-                        default=None)
-    parser.add_argument('--stats-database',
-                        help='MySQL schema that contains the statistics database.',
-                        default=None)
-    options = parser.parse_args().__dict__
-    # nest --stats-X option into a hash 'statistics' if --stats-host is set and not null
-    if 'stats_host' in options and options['stats_host'] is not None:
-        statistics = dict()
-        statistics['host'] = options['stats_host']
-        del options['stats_host']
-        statistics['port'] = options['stats_port']
-        del options['stats_port']
-        statistics['user'] = options['stats_user']
-        del options['stats_user']
-        statistics['password'] = options['stats_password']
-        del options['stats_password']
-        statistics['database'] = options['stats_database']
-        del options['stats_database']
-        options['statistics'] = statistics
-    return options
-
-
-def parse_config_file(config_path):
-    """
-    Reads the given config_path absolute path and returns a dictionary
-    of dictionaries with section names as keys, config names as subkeys
-    and values of that config as final values.
-    Threads concurrency is limited based on the number of simultaneous backups.
-    The file must be in yaml format, and it allows for default configurations:
-
-    user: 'test'
-    password: 'test'
-    sections:
-      s1:
-        host: 's1-master.eqiad.wmnet'
-      s2:
-        host: 's2-master.eqiad.wmnet'
-        archive: True
-    """
-    logger = logging.getLogger('backup')
-    try:
-        config_file = yaml.load(open(config_path))
-    except yaml.YAMLError:
-        logger.error('Error opening or parsing the YAML file {}'.format(config_path))
-        sys.exit(1)
-    if not isinstance(config_file, dict) or 'sections' not in config_file:
-        logger.error('Error reading sections from file {}'.format(config_path))
-        sys.exit(2)
-
-    default_options = config_file.copy()
-    # If individual thread configuration is set for each backup, it could have strange effects
-    if 'threads' not in default_options:
-        default_options['threads'] = DEFAULT_THREADS
-    if 'port' not in default_options:
-        default_options['port'] = DEFAULT_PORT
-    if 'type' not in default_options:
-        default_options['type'] = DEFAULT_TYPE
-
-    del default_options['sections']
-
-    manual_config = config_file['sections']
-    if len(manual_config) > 1:
-        # Limit the threads only if there is more than 1 backup
-        default_options['threads'] = int(default_options['threads'] / CONCURRENT_BACKUPS)
-    config = dict()
-    for section, section_config in manual_config.items():
-        # fill up sections with default configurations
-        config[section] = section_config.copy()
-        for default_key, default_value in default_options.items():
-            if default_key not in config[section]:
-                config[section][default_key] = default_value
-    return config
+            self.sanity_checks()
+        except ValueError as e:
+            print("ERROR: {}".format(str(e)))
+            return -1
+
+        print('About to transfer {} from {} to {}:{} ({} bytes)'
+              .format(self.source_path, self.source_host,
+                      self.target_hosts, self.target_paths,
+                      self.original_size))
+
+        transfer_sucessful = []
+        # actual transfer process- this is done serially until we implement a
+        # multicast-like process
+        for target_host, target_path in zip(self.target_hosts, self.target_paths):
+            self.open_firewall(target_host)
+
+            result = self.copy_to(target_host, target_path)
+
+            if self.close_firewall(target_host) != 0:
+                print('WARNING: Firewall\'s temporary rule could not be deleted')
+
+            transfer_sucessful.append(self.after_transfer_checks(result,
+                                                                 target_host,
+                                                                 target_path))
+
+        return transfer_sucessful
 
 
 def main():
-
-    logger = logging.getLogger('backup')
-    options = parse_options()
-    if options['section'] is None:
-        # no section name, read the config file, validate it and
-        # execute it, including rotation of old dumps
-        config = parse_config_file(options['config_file'])
-        result = dict()
-        backup_pool = ThreadPool(CONCURRENT_BACKUPS)
-        for section, section_config in config.items():
-            if section_config['type'] == 'dump':
-                result[section] = backup_pool.apply_async(logical_dump,
-                                                          (section, section_config, True))
-            else:
-                result[section] = backup_pool.apply_async(snapshot,
-                                                          (section, section_config, True))
-        backup_pool.close()
-        backup_pool.join()
-
-        if section_config['type'] == 'dump':
-            purge_dumps(ARCHIVE_LOGICAL_BACKUP_DIR, RETENTION_DAYS, DUMPNAME_REGEX)
-        else:
-            purge_dumps(ARCHIVE_RAW_BACKUP_DIR, RETENTION_DAYS, SNAPNAME_REGEX)
-
-        sys.exit(result[max(result, key=lambda key: result[key].get())].get())
-
-    else:
-        # a section name was given, only dump that one,
-        # but perform no rotation
-        if options['type'] == 'dump':
-            result = logical_dump(options['section'], options, False)
-        else:
-            result = snapshot(options['section'], options, False)
-        if 0 == result:
-            logger.info('Backup {} generated correctly.'.format(options['section']))
-        else:
-            logger.critical('Error while performing backup of {}'.format(options['section']))
-        sys.exit(result)
+    (source_host, source_path, target_hosts, target_paths, other_options) = option_parse()
+    t = Transferer(source_host, source_path, target_hosts, target_paths, other_options)
+    t.run()
 
 
 if __name__ == "__main__":
