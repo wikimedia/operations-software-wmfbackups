@@ -1,0 +1,249 @@
+#!/usr/bin/python3
+
+import logging
+import os
+import pymysql
+import socket
+
+DEFAULT_HOST = 'localhost'
+DEFAULT_PORT = 3306
+DEFAULT_USER = 'root'
+TLS_TRUSTED_CA = '/etc/ssl/certs/Puppet_Internal_CA.pem'
+
+
+class BackupStatistics:
+    """
+    Virtual class that defines the interface to generate
+    and store the backup statistics.
+    """
+
+    def __init__(self, dir_name, section, type, source, backup_dir, config):
+        self.dump_name = dir_name
+        self.section = section
+        self.type = type
+        self.source = source
+        self.backup_dir = backup_dir
+
+    def start(self):
+        pass
+
+    def gather_metrics(self):
+        pass
+
+    def fail(self):
+        pass
+
+    def finish(self):
+        pass
+
+    def delete(self):
+        pass
+
+
+class DisabledBackupStatistics(BackupStatistics):
+    """
+    Dummy class that does nothing when statistics are requested to be
+    generated and stored.
+    """
+    def __init__(self):
+        pass
+
+
+class DatabaseBackupStatistics(BackupStatistics):
+    """
+    Generates statistics and stored them on a MySQL/MariaDB database over TLS
+    """
+    host = None
+    port = 3306
+    user = None
+    password = None
+
+    def __init__(self, dir_name, section, type, source, backup_dir, config):
+        self.dump_name = dir_name
+        self.section = section
+        if source.endswith(':3306'):
+            self.source = source[:-5]
+        else:
+            self.source = source
+        self.backup_dir = backup_dir
+        self.host = config.get('host', DEFAULT_HOST)
+        self.port = config.get('port', DEFAULT_PORT)
+        self.database = config['database']
+        self.user = config.get('user', DEFAULT_USER)
+        self.password = config['password']
+        self.type = type
+
+    def set_status(self, status):
+        """
+        Updates or inserts the backup entry at the backup statistics
+        database, with the given status (ongoing, finished, failed).
+        If it is ongoing, it is considered a new entry (in which case,
+        section and source are required parameters.
+        Otherwise, it supposes an existing entry with the given name
+        exists, and it tries to update it.
+        Returns True if it was successful, False otherwise.
+        """
+        logger = logging.getLogger('backup')
+        try:
+            db = pymysql.connect(host=self.host, port=self.port, database=self.database,
+                                 user=self.user, password=self.password,
+                                 ssl={'ca': TLS_TRUSTED_CA})
+        except (pymysql.err.OperationalError):
+            logger.exception('We could not connect to {} to store the stats'.format(self.host))
+            return False
+        with db.cursor(pymysql.cursors.DictCursor) as cursor:
+            if status == 'ongoing':
+                if self.section is None or self.source is None:
+                    logger.error('A new backup requires a section and a source parameters')
+                    return False
+                host = socket.getfqdn()
+                query = "INSERT INTO backups (name, status, section, source, host, type," \
+                        "start_date, end_date) " \
+                        "VALUES (%s, 'ongoing', %s, %s, %s, %s, now(), NULL)"
+                try:
+                    result = cursor.execute(query, (self.dump_name, self.section, self.source,
+                                            host, self.type))
+                except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                    logger.error('A MySQL error occurred while trying to insert the entry '
+                                 'for the new backup')
+                    return False
+                if result is None:
+                    logger.error('We could not store the information on the database')
+                    return False
+                db.commit()
+            elif status in ('finished', 'failed', 'deleted'):
+                query = "SELECT id, status FROM backups WHERE name = %s and status = 'ongoing'"
+                try:
+                    result = cursor.execute(query, (self.dump_name, ))
+                except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                    logger.error('A MySQL error occurred while finding the entry for the '
+                                 'backup')
+                    return False
+                if result is None:
+                    logger.error('We could not select the database backup statistics server')
+                    return False
+                data = cursor.fetchall()
+                if len(data) != 1:
+                    logger.error('We could not find a single statistics entry for a non-ongoing '
+                                 'dump'.format(status))
+                    return False
+                else:
+                    backup_id = str(data[0]['id'])
+                    query = "UPDATE backups SET status = %s, end_date = now() WHERE id = %s"
+                    try:
+                        result = cursor.execute(query, (status, backup_id))
+                    except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                        logger.error('A MySQL error occurred while trying to update the '
+                                     'entry for the new backup')
+                        return False
+
+                    if result is None:
+                        logger.error('We could not set as finished the current dump')
+                        return False
+                    db.commit()
+                    return True
+            else:
+                logger.error('Invalid status: {}'.format(status))
+                return False
+
+    def recursive_file_traversal(self, db, backup_id, top_dir, directory):
+        """
+        Traverses 'directory' and its subdirs (assuming top_dir is the absolute starting path),
+        inserts metadata on database 'db',
+        and returns the total size of the directory, or None if there was an error.
+        """
+        logger = logging.getLogger('backup')
+        total_size = 0
+        # TODO: capture file errors
+        for name in sorted(os.listdir(os.path.join(top_dir, directory))):
+            path = os.path.join(top_dir, directory, name)
+            statinfo = os.stat(path)
+            size = statinfo.st_size
+            total_size += size
+            time = statinfo.st_mtime
+            # TODO: Identify which object this files corresponds to and record it on
+            #       backup_objects
+            with db.cursor(pymysql.cursors.DictCursor) as cursor:
+                query = ("INSERT INTO backup_files "
+                         "(backup_id, file_path, file_name, size, file_date, backup_object_id) "
+                         "VALUES (%s, %s, %s, %s, FROM_UNIXTIME(%s), NULL)")
+                try:
+                    cursor.execute(query, (backup_id, directory, name, size, time))
+                except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                    logger.error('A MySQL error occurred while inserting the backup '
+                                 'file details')
+                    return None
+            # traverse subdir
+            # TODO: Check for links to avoid infinite recursivity
+            if os.path.isdir(path):
+                dir_size = self.recursive_file_traversal(db,
+                                                         backup_id,
+                                                         top_dir,
+                                                         os.path.join(directory, name))
+                if dir_size is None:
+                    return None
+                else:
+                    total_size += dir_size
+        return total_size
+
+    def gather_metrics(self):
+        """
+        Gathers the file name list, last modification and sizes for the generated files
+        and stores it on the given statistics mysql database.
+        """
+        logger = logging.getLogger('backup')
+        # Find the completed backup db entry
+        try:
+            db = pymysql.connect(host=self.host, port=self.port, database=self.database,
+                                 user=self.user, password=self.password,
+                                 ssl={'ca': TLS_TRUSTED_CA})
+        except (pymysql.err.OperationalError):
+            logger.exception('We could not connect to {} to store the stats'.format(self.host))
+            return False
+        with db.cursor(pymysql.cursors.DictCursor) as cursor:
+            query = "SELECT id, status FROM backups WHERE name = %s AND status = 'ongoing'"
+            try:
+                result = cursor.execute(query, (self.dump_name,))
+            except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                logger.error('A MySQL error occurred while finding the entry for the '
+                             'backup')
+                return False
+            if result is None:
+                logger.error('We could not update the database backup statistics server')
+                return False
+            data = cursor.fetchall()
+            if len(data) != 1:
+                logger.error('We could not find the existing statistics for the finished '
+                             'dump')
+                return False
+            backup_id = str(data[0]['id'])
+
+        # Insert the backup file list
+        total_size = self.recursive_file_traversal(db=db, backup_id=backup_id,
+                                                   top_dir=self.backup_dir, directory='')
+        if total_size is None:
+            logger.error('An error occurred while traversing the individual backup files')
+            return False
+
+        # Update the total backup size
+        with db.cursor(pymysql.cursors.DictCursor) as cursor:
+            query = "UPDATE backups SET total_size = %s WHERE id = %s"
+            try:
+                result = cursor.execute(query, (total_size, backup_id))
+            except (pymysql.err.ProgrammingError, pymysql.err.InternalError):
+                logger.error('A MySQL error occurred while updating the total backup size')
+                return False
+        db.commit()
+        return True
+
+    def start(self):
+        self.set_status('ongoing')
+
+    def fail(self):
+        self.set_status('failed')
+
+    def finish(self):
+        self.set_status('finished')
+
+    def delete(self):
+        self.set_status('deleted')
