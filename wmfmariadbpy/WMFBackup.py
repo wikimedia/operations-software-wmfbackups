@@ -17,6 +17,7 @@ DEFAULT_BACKUP_TYPE = 'dump'
 DEFAULT_BACKUP_THREADS = 18
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 3306
+DEFAULT_RETENTION_DAYS = 18
 
 
 class NullBackup:
@@ -266,7 +267,6 @@ class WMFBackup:
     name = None  # e.g. s1, tendril, s4-test
     config = {}  # dictionary with backup config (type, backup_dir, ...)
     logger = None  # object of clas logging
-    retention_days = 18
     dir_name = None  # e.g. dump.s1.2019-01-01--11-34-45
     file_name = None  # e.g. dump.s1.2019-01-01--11-34-45.tar.gz
     log_file = None  # e.g. /srv/backups/dumps/dump_log.s1
@@ -347,24 +347,24 @@ class WMFBackup:
     def purge_backups(self, source=None, days=None, regex=None):
         """
         Remove subdirectories in source dir and all its contents for dirs/files that
-        have the right format (dump.section.date) and are older than the given
+        have the right format (dump.section.date), its sections matches the current
+        section, and are older than the given
         number of days.
         """
         if source is None:
             source = self.default_archive_backup_dir
         if days is None:
-            days = self.retention_days
+            days = self.config['retention']
         if regex is None:
             regex = self.name_regex
         files = os.listdir(source)
         pattern = re.compile(regex)
         for entry in files:
             path = os.path.join(source, entry)
-            # Allow to move tarballs, too
-            # if not os.path.isdir(path):
-            #     continue
             match = pattern.match(entry)
             if match is None:
+                continue
+            if self.name != match.group(1):
                 continue
             timestamp = datetime.datetime.strptime(match.group(2), DATE_FORMAT)
             if (timestamp < (datetime.datetime.now() - datetime.timedelta(days=days)) and
@@ -482,18 +482,21 @@ class WMFBackup:
                                 compression='/usr/bin/pigz -p {}'.format(threads))
 
         if rotate:
-            # peform rotations
+            # perform rotations
             # move the old latest one to the archive, and the current as the latest
+            # then delete old backups of the same section, according to the retention
+            # config
             self.move_backups(self.name, self.default_final_backup_dir,
                               self.default_archive_backup_dir, self.name_regex)
             os.rename(os.path.join(backup_dir, self.file_name),
                       os.path.join(self.default_final_backup_dir, self.file_name))
+            self.purge_backups()
 
         # we are done
         stats.finish()
         return 0
 
-    def __init__(self, name, config, retention_days=18):
+    def __init__(self, name, config):
         """
         Constructor requires the dictionary with the backup configuration, the name of the backup
         """
@@ -502,4 +505,5 @@ class WMFBackup:
         if 'type' not in config:
             self.config['type'] = DEFAULT_BACKUP_TYPE
         self.logger = logging.getLogger(name)
-        self.retention_days = retention_days
+        if 'retention' not in config:
+            self.config['retention'] = DEFAULT_RETENTION_DAYS

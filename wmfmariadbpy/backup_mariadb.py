@@ -78,6 +78,10 @@ def parse_options():
                         action='store_true',
                         help=('If present, run the rotation process, by moving it to the standard.'
                               '"latest" backup. Default: Do not rotate.'))
+    parser.add_argument('--retention',
+                        type=int,
+                        help=('If rotate is set, purge backups of this section older than '
+                              'the given value, in days. Default: 18 days.'))
     parser.add_argument('--backup-dir',
                         help=('Directory where the backup will be stored. '
                               'Default: {}.').format(DEFAULT_BACKUP_DIR),
@@ -196,20 +200,13 @@ def main():
         config = parse_config_file(options['config_file'])
         backup = dict()
         result = dict()
-        backup_types = dict()
         backup_pool = ThreadPool(CONCURRENT_BACKUPS)
         for section, section_config in config.items():
             backup[section] = WMFBackup(section, section_config)
             result[section] = backup_pool.apply_async(backup[section].run)
-            # register one backup of each successful type for purging purpuses
-            if 0 == result[section] and section_config['type'] not in backup_types.keys:
-                backup_types[section_config['type']] = backup[section]
 
         backup_pool.close()
         backup_pool.join()
-
-        for performed_backup in backup_types:
-            performed_backup.purge_backups()
 
         sys.exit(result[max(result, key=lambda key: result[key].get())].get())
 
@@ -218,8 +215,6 @@ def main():
         backup = WMFBackup(options['section'], options)
         result = backup.run()
         if 0 == result:
-            if options['rotate']:
-                backup.purge_backups()
             logger.info('Backup {} generated correctly.'.format(options['section']))
         else:
             logger.critical('Error while performing backup of {}'.format(options['section']))
