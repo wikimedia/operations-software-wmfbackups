@@ -37,6 +37,8 @@ def option_parse():
     checksum_group.add_argument('--no-checksum', action='store_false', dest='checksum')
     parser.set_defaults(checksum=True)
 
+    parser.add_argument('--stop-slave', action='store_true', dest='stop_slave')
+
     options = parser.parse_args()
     source_host = options.source.split(':', 1)[0]
     source_path = options.source.split(':', 1)[1]
@@ -50,7 +52,8 @@ def option_parse():
         'type': options.transfer_type,
         'compress': True if options.transfer_type == 'decompress' else options.compress,
         'encrypt': options.encrypt,
-        'checksum': False if not options.transfer_type == 'file' else options.checksum
+        'checksum': False if not options.transfer_type == 'file' else options.checksum,
+        'stop_slave': False if not options.transfer_type == 'xtrabackup' else options.stop_slave
     }
     return source_host, source_path, target_hosts, target_paths, other_options
 
@@ -378,12 +381,18 @@ class Transferer(object):
             self.checksum = self.calculate_checksum(self.source_host, self.source_path)
 
     def after_transfer_checks(self, result, target_host, target_path):
-        # post-transfer checks
+        """
+        Post-transfer checks: Was the transfer really successful. Yes- return 0; No-
+        return 1 or more.
+        """
+        # Return code was not 0?
         if result != 0:
             print('ERROR: Copy from {}:{} to {}:{} failed'
                   .format(self.source_host, self.source_path, target_host, target_path))
             return 1
 
+        # if creating or restoring a backup, does it include an xtrabackup_info file,
+        # otherwise, does the copied file or dir exists?
         if self.is_xtrabackup or self.is_decompress:
             target_final_path = os.path.normpath(target_path)
             check_path = os.path.join(os.path.normpath(target_path), 'xtrabackup_info')
@@ -391,14 +400,19 @@ class Transferer(object):
             target_final_path = os.path.join(os.path.normpath(target_path),
                                              os.path.basename(self.source_path))
             check_path = target_final_path
+
         if not self.file_exists(target_host, check_path):
             print(('ERROR: file was not found on the target path {} after transfer'
                    ' to {}').format(check_path, target_host))
             return 2
+
+        # Is original and final size the same? Otherwise throw a warning
         final_size = self.disk_usage(target_host, target_final_path)
         if self.original_size != final_size:
             print('WARNING: Original size is {} but transferred size is {} for'
                   ' copy to {}'.format(self.original_size, final_size, target_host))
+
+        # Was checksum requested, and does it match the original?
         if self.options['checksum']:
             target_checksum = self.calculate_checksum(target_host, target_final_path)
             if self.checksum != target_checksum:
@@ -409,9 +423,31 @@ class Transferer(object):
             else:
                 print(('Checksum of all original files on {} and the transmitted ones'
                        ' on {} match.').format(self.source_host, target_host))
+
+        # All checks seem right, return success
         print('{} bytes correctly transferred from {} to {}'
               .format(final_size, self.source_host, target_host))
         return 0
+
+    def start_slave(self, host, socket):
+        """
+        Stop slave on instance of the given host and socket
+        """
+        command = ['/usr/local/bin/mysql', '--socket', socket,
+                   '--connect-timeout=10',
+                   '--execute="STOP SLAVE"']
+        result = self.run_command(host, command)
+        return result.returncode
+
+    def stop_slave(self, host, socket):
+        """
+        Start slave on instance of the given host and socket
+        """
+        command = ['/usr/local/bin/mysql', '--socket', socket,
+                   '--connect-timeout=10',
+                   '--execute="START SLAVE"']
+        result = self.run_command(host, command)
+        return result.returncode
 
     def run(self):
         """
@@ -427,6 +463,13 @@ class Transferer(object):
             print("ERROR: {}".format(str(e)))
             return -1
 
+        # stop slave if requested
+        if self.options.stop_slave:
+            result = self.stop_slave(self.source_host, self.source_path)
+            if result != 0:
+                print("ERROR: Stop slave failed")
+                return -2
+
         print('About to transfer {} from {} to {}:{} ({} bytes)'
               .format(self.source_path, self.source_host,
                       self.target_hosts, self.target_paths,
@@ -437,7 +480,6 @@ class Transferer(object):
         # multicast-like process
         for target_host, target_path in zip(self.target_hosts, self.target_paths):
             self.open_firewall(target_host)
-
             result = self.copy_to(target_host, target_path)
 
             if self.close_firewall(target_host) != 0:
@@ -446,6 +488,12 @@ class Transferer(object):
             transfer_sucessful.append(self.after_transfer_checks(result,
                                                                  target_host,
                                                                  target_path))
+
+        if self.options.stop_slave:
+            result = self.start_slave(self.source_host, self.source_path)
+            if result != 0:
+                print("ERROR: Start slave failed")
+                return -3
 
         return transfer_sucessful
 
