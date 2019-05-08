@@ -464,7 +464,7 @@ class Transferer(object):
             return -1
 
         # stop slave if requested
-        if self.options.stop_slave:
+        if self.options.get('stop_slave', False):
             result = self.stop_slave(self.source_host, self.source_path)
             if result != 0:
                 print("ERROR: Stop slave failed")
@@ -489,7 +489,7 @@ class Transferer(object):
                                                                  target_host,
                                                                  target_path))
 
-        if self.options.stop_slave:
+        if self.options.get('stop_slave', False):
             result = self.start_slave(self.source_host, self.source_path)
             if result != 0:
                 print("ERROR: Start slave failed")
