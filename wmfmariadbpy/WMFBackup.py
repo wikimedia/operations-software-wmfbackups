@@ -76,7 +76,7 @@ class NullBackup:
 class MariaBackup(NullBackup):
 
     xtrabackup_path = '/opt/wmf-mariadb101/bin/mariabackup'  # FIXME for global path after upgrade
-    xtrabackup_prepare_memory = '10G'
+    xtrabackup_prepare_memory = '20G'
 
     def get_backup_cmd(self, backup_dir):
         """
