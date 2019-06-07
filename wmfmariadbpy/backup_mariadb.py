@@ -41,7 +41,9 @@ def parse_options():
                         help=('Section name of the backup. E.g.: "s3", "tendril". '
                               'If section is set, --config-file is ignored. '
                               'If it is empty, only config-file options will be used '
-                              'and other command line options will be ignored.'),
+                              'and other command line options will be ignored. '
+                              'For --only-postprocess work, you can also provide '
+                              'an absolute path of the directory'),
                         nargs='?',
                         default=None)
     parser.add_argument('--config-file',

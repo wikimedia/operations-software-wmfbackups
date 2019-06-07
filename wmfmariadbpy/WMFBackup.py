@@ -300,6 +300,32 @@ class WMFBackup:
         self.file_name = self.dir_name + extension
         self.log_file = os.path.join(backup_dir, '{}_log.{}'.format(self.config['type'], self.name))
 
+    def parse_backup_file(self):
+        """
+        Given a self.name being an absolute path (not a section), generate the actual section name,
+        backup_dir, dir_name, file_name, and log file
+        """
+        type = self.config['type']
+        regex = r'.*/(([^/\.]+)\.([^/\.]+)\.\d\d\d\d-\d\d-\d\d--\d\d-\d\d-\d\d)/*$'
+        result = re.match(regex, self.name)
+        if not result or not os.path.isdir(self.name):
+            self.logger.error('{} is not a valid absolute path directory'.format(self.name))
+            return None
+        if result.group(2) != type:
+            msg = 'A {} backup was requested, but a {} dir was provided'
+            self.logger.error(msg.format(type, result.group(2)))
+            return None
+        backup_dir = os.path.normpath(os.path.join(self.name, '..'))  # /backups/ongoing
+        self.name = result.group(3)  # section identifier e.g. 's1'
+        self.dir_name = result.group(1)  # type.section.date
+        if self.config.get('compress', False):
+            extension = '.tar.gz'
+        else:
+            extension = ''
+        self.file_name = self.dir_name + extension  # e.g. type.section.date.tar.gz
+        self.log_file = os.path.join(backup_dir, '{}_log.{}'.format(type, self.name))
+        return 0
+
     def find_backup_file(self, backup_dir):
         """
         Generates the backup name and returns the log path of the only backup file/dir within
@@ -426,7 +452,12 @@ class WMFBackup:
 
         # find or generate the backup file/dir
         if only_postprocess:
-            self.find_backup_file(backup_dir)
+            if self.name.startswith('/'):  # if passed an absolute path as section name
+                # basedir doesn't work as intended if passed /a/path/like/this/
+                backup_dir = os.path.normpath(os.path.join(self.name, '..'))
+                self.parse_backup_file()
+            else:
+                self.find_backup_file(backup_dir)
             if self.file_name is None:
                 msg = 'Problem while trying to find the backup files at {}'
                 self.logger.error(msg.format(backup_dir))
