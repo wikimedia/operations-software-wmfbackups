@@ -13,6 +13,8 @@ import time
 # Update if operations/puppet:modules/mariadb/manifests/heartbeat.pp changes
 HEARTBEAT_EXEC = '/usr/bin/perl /usr/local/bin/pt-heartbeat-wikimedia --defaults-file=/dev/null --user=root --host=localhost -D heartbeat --shard={0} --datacenter={1} --update --replace --interval={2} --set-vars=binlog_format=STATEMENT -S {3} --daemonize --pid /var/run/pt-heartbeat.pid'
 
+ZARCILLO_INSTANCE = 'db1115'  # instance_name:port format
+
 
 def handle_parameters():
     parser = argparse.ArgumentParser(description='Performs a master to direct replica switchover in the WMF environment, automating the most error-prone steps. Example usage: switchover.py db1052 db1067')
@@ -169,17 +171,32 @@ def move_replicas_to_new_master(master_replication, slave_replication, timeout):
     """
     Migrates all old master direct slaves to the new master, maintaining the consistency.
     """
+    print('Disabling GTID on new master...')
+    slave_replication.set_gtid_mode('no')
+    clients = 0
     for replica in master_replication.slaves():
         print('Testing if to migrate {}...'.format(replica.name()))
         if replica.is_same_instance_as(slave_replication.connection):
             print('Nope')
             continue  # do not move the target replica to itself
         replication = WMFReplication.WMFReplication(replica, timeout)
+        print('Disabling GTID on {}...'.format(replica.name()))
+        replication.set_gtid_mode('no')
         result = replication.move(new_master=slave_replication.connection, start_if_stopped=True)
         if not result['success']:
             print('[ERROR]: {} failed to be migrated from master to replica'.format(replica.name()))
             sys.exit(-1)
+        print('Reenabling GTID on {}...'.format(replica.name()))
+        replication.set_gtid_mode('slave_pos')
         print('Migrated {} successfully from master to replica'.format(replica.name()))
+        clients += 1
+
+    query = "SHOW GLOBAL STATUS like 'Rpl_semi_sync_master_clients'"
+    result = slave_replication.connection.execute(query)
+    if not result['success'] or result['numrows'] != 1 or int(result['rows'][0][1]) < clients:
+        print('[ERROR]: Semisync was not enabled on all hosts')
+        return -1
+    return 0
 
 
 def stop_heartbeat(master):
@@ -266,7 +283,103 @@ def start_heartbeat(master, section, datacenter, interval, socket):
         print('Detected heartbeat at {} running with PID {}'.format(master.host, str(process_id)))
 
 
+def update_tendril(master, slave):
+    """
+    After switching over the master role from the 'master' host to the 'slave' one,
+    update tendril so it reflects reality
+    """
+    print('Updating tendril...')
+    # get section of the original master
+    tendril = WMFMariaDB(ZARCILLO_INSTANCE, database='tendril')
+    query = ("SELECT name "
+             "FROM shards "
+             "WHERE master_id = (SELECT id "
+             "                   FROM servers "
+             "                   WHERE host = %s AND port = %s)")
+    result = tendril.execute(query, (master.host, master.port))
+    if not result['success'] or result['numrows'] != 1:
+        print('[ERROR] Old master not found on server list')
+        return -1
+    section = result['rows'][0][0]
+    # update section with new host id
+    query = ("UPDATE shards "
+             "SET master_id = "
+             "(SELECT id FROM servers WHERE host = %s and port = %s) "
+             "WHERE name = %s LIMIT 1")
+    result = tendril.execute(query, (slave.host, slave.port, section))
+    if not result['success']:
+        print('[ERROR] New master could not be updated on tendril')
+        return -1
+    print(('Tendril updated successfully: '
+           '{}:{} is the new master of {}').format(slave.host, slave.port, section))
+    return 0
+
+
+def update_zarcillo(master, slave):
+    """
+    After switching over the master role from the 'master' host to the 'slave' one,
+    update zarcillo so it reflects reality
+    """
+    print('Updating zarcillo...')
+    # get section and dc of the original master
+    zarcillo = WMFMariaDB(ZARCILLO_INSTANCE, database='zarcillo')
+    query = ("SELECT section, dc "
+             "FROM masters "
+             "WHERE instance = (SELECT name "
+             "                  FROM instances "
+             "                  WHERE server = %s AND port = %s)")
+    result = zarcillo.execute(query, (master.host, master.port))
+    if not result['success'] or result['numrows'] != 1:
+        print('[ERROR] Old master not found on master list')
+        return -1
+    section = result['rows'][0][0]
+    dc = result['rows'][0][1]
+    # update section with section name from the former slave
+    query = ("UPDATE masters "
+             "SET instance = (SELECT name "
+             "                FROM instances "
+             "                WHERE server = %s AND port = %s)"
+             "WHERE section = %s AND dc = %s LIMIT 1")
+    result = zarcillo.execute(query, (slave.host, slave.port, section, dc))
+    if not result['success']:
+        print('[ERROR] New master could not be updated on zarcillo')
+        return -1
+    print(('Zarcillo updated successfully: '
+           '{}:{} is the new master of {} at {}').format(slave.host, slave.port, section, dc))
+    return 0
+
+
+def reenable_gtid_on_old_master(master_replication):
+    print('Enabling GTID on old master...')
+    master_replication.set_gtid_mode('slave_pos')
+
+
+def handle_semisync_replication(master, slave):
+    """
+    Enable semi-sync replication on new master, disable it on old one
+    """
+    result = slave.execute('SET GLOBAL rpl_semi_sync_master_enabled = 1')
+    if not result['success']:
+        print('[ERROR] Semisync could not be enabled on the new master')
+        sys.exit(-1)
+    result = master.execute('SET GLOBAL rpl_semi_sync_master_enabled = 0')
+    if not result['success']:
+        print('[ERROR] Semisync could not be disabled on the old master')
+        sys.exit(-1)
+    return 0
+
+
+def update_events(master, slave):
+    # TODO full automation- requires core db detection
+    print(('Please remember to run the following commands as root to '
+           'update the events if they are Mediawiki databases:'))
+    print('mysql.py -h %s < /home/jynus/software/dbtools/events_coredb_slave.sql'.format(master))
+    print('mysql.py -h %s < /home/jynus/software/dbtools/events_coredb_master.sql'.format(slave))
+    return 0
+
+
 def main():
+    # Preparatory steps
     options = handle_parameters()
     master = WMFMariaDB.WMFMariaDB(options.master)
     slave = WMFMariaDB.WMFMariaDB(options.slave)
@@ -276,6 +389,8 @@ def main():
 
     do_preflight_checks(master_replication, slave_replication, timeout)
 
+    handle_semisync_replication(master, slave)
+
     if not options.skip_slave_move:
         move_replicas_to_new_master(master_replication, slave_replication, timeout)
 
@@ -283,6 +398,7 @@ def main():
         print('SUCCESS: All slaves moved correctly, but not continuing further because --only-slave-move')
         sys.exit(0)
 
+    # core steps
     if not options.skip_heartbeat:
         section, datacenter, interval, socket = stop_heartbeat(master)
 
@@ -310,6 +426,12 @@ def main():
     verify_status_after_switch(master_replication, slave_replication, timeout)
 
     print('SUCCESS: Master switch completed successfully')
+
+    # Additional steps
+    reenable_gtid_on_old_master(master_replication)
+    update_tendril(master, slave)
+    update_zarcillo(master, slave)
+    update_events(options.master, options.slave)
 
     sys.exit(0)
 
