@@ -114,7 +114,6 @@ def do_preflight_checks(master_replication, slave_replication, timeout, replicat
 
 def set_master_in_read_only(master_replication):
     print('Setting up original master as read-only')
-    master_replication.connection.execute('COMMIT')  # commit pending transactions
     result = master_replication.connection.execute('SET GLOBAL read_only = 1')
     if not result['success']:
         print('[ERROR]: Could not set the master as read only')
@@ -154,7 +153,6 @@ def set_replica_in_read_write(master_replication, slave_replication):
     slave = slave_replication.connection
     master = master_replication.connection
     print('Setting up replica as read-write')
-    master_replication.connection.execute('COMMIT')  # commit pending transactions
     result = slave.execute('SET GLOBAL read_only = 0')
     if not result['success']:
         print('[ERROR]: Could not set the slave as read write, '
@@ -229,8 +227,8 @@ def stop_master_replication(master_replication):
                'of master after stopping it: {}').format(result['errmsg']))
         sys.exit(-1)
     print(('Original master replication '
-           'was stopped and reset at {}:{}').format((master_slave_status['relay_master_log_file'],
-                                                     master_slave_status['exec_master_log_pos'])))
+           'was stopped and reset at {}:{}').format(master_slave_status['relay_master_log_file'],
+                                                    master_slave_status['exec_master_log_pos']))
     return master_slave_status
 
 
@@ -319,7 +317,7 @@ def move_replicas_to_new_master(master_replication, slave_replication, timeout):
     slave_replication.set_gtid_mode('no')
     clients = 0
     for replica in master_replication.slaves():
-        print('Testing if to migrate {}...'.format(replica.name()))
+        print('Checking if {} needs to be moved under the new master...'.format(replica.name()))
         if replica.is_same_instance_as(slave_replication.connection):
             print('Nope')
             continue  # do not move the target replica to itself
@@ -327,18 +325,18 @@ def move_replicas_to_new_master(master_replication, slave_replication, timeout):
         print('Disabling GTID on {}...'.format(replica.name()))
         replication.set_gtid_mode('no')
         result = replication.move(new_master=slave_replication.connection, start_if_stopped=True)
-        if not result['success']:
-            print('[ERROR]: {} failed to be migrated from master to replica'.format(replica.name()))
+        if result is None or not result['success']:
+            print('[ERROR]: {} failed to be moved under the new master'.format(replica.name()))
             sys.exit(-1)
         print('Reenabling GTID on {}...'.format(replica.name()))
         replication.set_gtid_mode('slave_pos')
-        print('Migrated {} successfully from master to replica'.format(replica.name()))
+        print('{} was moved successfully under the new master'.format(replica.name()))
         clients += 1
 
     query = "SHOW GLOBAL STATUS like 'Rpl_semi_sync_master_clients'"
     result = slave_replication.connection.execute(query)
     if not result['success'] or result['numrows'] != 1 or int(result['rows'][0][1]) < clients:
-        print('[ERROR]: Semisync was not enabled on all hosts')
+        print('[WARNING]: Semisync was not enabled on all hosts')
         return -1
     return 0
 
@@ -437,28 +435,28 @@ def update_tendril(master, slave):
     """
     print('Updating tendril...')
     # get section of the original master
-    tendril = WMFMariaDB(ZARCILLO_INSTANCE, database='tendril')
+    tendril = WMFMariaDB.WMFMariaDB(ZARCILLO_INSTANCE, database='tendril')
     query = ("SELECT name "
              "FROM shards "
              "WHERE master_id = (SELECT id "
              "                   FROM servers "
-             "                   WHERE host = %s AND port = %s)")
-    result = tendril.execute(query, (master.host, master.port))
+             "                   WHERE host = '{}' AND port = %s)")
+    result = tendril.execute(query.format(master.host, master.port))
     if not result['success'] or result['numrows'] != 1:
-        print('[ERROR] Old master not found on server list')
+        print('[WARNING] Old master not found on tendril server list')
         return -1
     section = result['rows'][0][0]
     # update section with new host id
     query = ("UPDATE shards "
              "SET master_id = "
-             "(SELECT id FROM servers WHERE host = %s and port = %s) "
-             "WHERE name = %s LIMIT 1")
-    result = tendril.execute(query, (slave.host, slave.port, section))
+             "(SELECT id FROM servers WHERE host = '{}' and port = %s) "
+             "WHERE name = '{}' LIMIT 1")
+    result = tendril.execute(query.format(slave.host, slave.port, section))
     if not result['success']:
-        print('[ERROR] New master could not be updated on tendril')
+        print('[WARNING] New master could not be updated on tendril')
         return -1
     print(('Tendril updated successfully: '
-           '{}:{} is the new master of {}').format(slave.host, slave.port, section))
+           '{} is the new master of {}').format(slave.name(), section))
     return 0
 
 
@@ -469,15 +467,15 @@ def update_zarcillo(master, slave):
     """
     print('Updating zarcillo...')
     # get section and dc of the original master
-    zarcillo = WMFMariaDB(ZARCILLO_INSTANCE, database='zarcillo')
+    zarcillo = WMFMariaDB.WMFMariaDB(ZARCILLO_INSTANCE, database='zarcillo')
     query = ("SELECT section, dc "
              "FROM masters "
              "WHERE instance = (SELECT name "
              "                  FROM instances "
-             "                  WHERE server = %s AND port = %s)")
-    result = zarcillo.execute(query, (master.host, master.port))
+             "                  WHERE server = '{}' AND port = {})")
+    result = zarcillo.execute(query.format(master.host, master.port))
     if not result['success'] or result['numrows'] != 1:
-        print('[ERROR] Old master not found on master list')
+        print('[WARNING] Old master not found on zarcillo master list')
         return -1
     section = result['rows'][0][0]
     dc = result['rows'][0][1]
@@ -485,14 +483,14 @@ def update_zarcillo(master, slave):
     query = ("UPDATE masters "
              "SET instance = (SELECT name "
              "                FROM instances "
-             "                WHERE server = %s AND port = %s)"
-             "WHERE section = %s AND dc = %s LIMIT 1")
-    result = zarcillo.execute(query, (slave.host, slave.port, section, dc))
+             "                WHERE server = '{}' AND port = {})"
+             "WHERE section = '{}' AND dc = '{}' LIMIT 1")
+    result = zarcillo.execute(query.format(slave.host, slave.port, section, dc))
     if not result['success']:
-        print('[ERROR] New master could not be updated on zarcillo')
+        print('[WARNING] New master could not be updated on zarcillo')
         return -1
     print(('Zarcillo updated successfully: '
-           '{}:{} is the new master of {} at {}').format(slave.host, slave.port, section, dc))
+           '{} is the new master of {} at {}').format(slave.name(), section, dc))
     return 0
 
 
@@ -501,27 +499,36 @@ def reenable_gtid_on_old_master(master_replication):
     master_replication.set_gtid_mode('slave_pos')
 
 
-def handle_semisync_replication(master, slave):
-    """
-    Enable semi-sync replication on new master, disable it on old one
-    """
+def handle_new_master_semisync_replication(slave):
+    # Disable semi_sync_replica and enable semi_sync_master on the new master
+    result = slave.execute("SET GLOBAL rpl_semi_sync_slave_enabled = 0")
+    if not result['success']:
+        print('[WARNING] Semisync slave could not be disabled on the new master')
+    slave.execute("UNINSTALL PLUGIN rpl_semi_sync_slave")
+    slave.execute("INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so'")
     result = slave.execute('SET GLOBAL rpl_semi_sync_master_enabled = 1')
     if not result['success']:
-        print('[ERROR] Semisync could not be enabled on the new master')
-        sys.exit(-1)
+        print('[WARNING] Semisync could not be enabled on the new master')
+
+
+def handle_old_master_semisync_replication(master):
+    # Enable semi_sync_replica and disable semi_sync_master on the old master
     result = master.execute('SET GLOBAL rpl_semi_sync_master_enabled = 0')
     if not result['success']:
-        print('[ERROR] Semisync could not be disabled on the old master')
-        sys.exit(-1)
-    return 0
+        print('[WARNING] Semisync could not be disabled on the old master')
+    master.execute("UNINSTALL PLUGIN rpl_semi_sync_master")
+    master.execute("INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so'")
+    result = master.execute("SET GLOBAL rpl_semi_sync_slave_enabled = 1")
+    if not result['success']:
+        print('[WARNING] Semisync slave could not be enabled on the old master')
 
 
 def update_events(master, slave):
     # TODO full automation- requires core db detection
     print(('Please remember to run the following commands as root to '
            'update the events if they are Mediawiki databases:'))
-    print('mysql.py -h %s < /home/jynus/software/dbtools/events_coredb_slave.sql'.format(master))
-    print('mysql.py -h %s < /home/jynus/software/dbtools/events_coredb_master.sql'.format(slave))
+    print('mysql.py -h {} < /home/jynus/software/dbtools/events_coredb_slave.sql'.format(master))
+    print('mysql.py -h {} < /home/jynus/software/dbtools/events_coredb_master.sql'.format(slave))
     return 0
 
 
@@ -533,13 +540,13 @@ def main():
     timeout = options.timeout
     slave_replication = WMFReplication.WMFReplication(slave, timeout)
     master_replication = WMFReplication.WMFReplication(master, timeout)
-    replicating_master = options.get('replicating_master', False)
-    read_only_master = options.get('read_only_master', False)
+    replicating_master = options.replicating_master
+    read_only_master = options.read_only_master
 
     do_preflight_checks(master_replication, slave_replication, timeout, replicating_master,
                         read_only_master)
 
-    handle_semisync_replication(master, slave)
+    handle_new_master_semisync_replication(slave)
 
     if not options.skip_slave_move:
         move_replicas_to_new_master(master_replication, slave_replication, timeout)
@@ -574,6 +581,8 @@ def main():
         set_replica_in_read_write(master_replication, slave_replication)
 
     invert_replication_direction(master_replication, slave_replication, master_status_on_switch)
+
+    handle_old_master_semisync_replication(master)
 
     if not options.skip_heartbeat:
         start_heartbeat(slave, section, datacenter, interval, socket)

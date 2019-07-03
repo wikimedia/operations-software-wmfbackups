@@ -176,7 +176,7 @@ class WMFMariaDB:
             self.connection = pymysql.connect(
                 host=host, port=port, user=user, password=password,
                 db=database, charset='utf8mb4', unix_socket=socket, ssl=ssl,
-                connect_timeout=connect_timeout)
+                connect_timeout=connect_timeout, autocommit=True)
         except (pymysql.err.OperationalError, pymysql.err.InternalError, FileNotFoundError) as e:
             self.connection = None
             self.__last_error = [e.args[0], e.args[1]]

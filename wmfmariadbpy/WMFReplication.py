@@ -90,11 +90,13 @@ class WMFReplication:
 
     def is_sibling_of(self, sibling):
         """
-        Checks if current instance is replicating directly from the same host than "sibling"
+        Checks if current instance is replicating directly from the same host than "sibling".
+        Returns false if the same hosts is sent as the sibling to check (they have to be different hosts).
         """
         current_master = self.master()
         sibling_master = WMFReplication(sibling).master()
         return (current_master is not None and sibling_master is not None and
+                not self.connection.is_same_instance_as(sibling) and
                 current_master.is_same_instance_as(sibling_master))
 
     def reset_slave(self):
@@ -188,7 +190,7 @@ class WMFReplication:
 
     def stop_slave(self, thread=None):
         """
-        Starts the replication thread given (allowed values are 'sql', 'io', or None- the default,
+        Stops the replication thread given (allowed values are 'sql', 'io', or None- the default,
         which will try to stop both threads). If all the given threads are already stopped, it
         returns with an error.
         For convenience, if the action is succesful, it will return a copy of the replication
@@ -402,10 +404,14 @@ class WMFReplication:
         current_status = self.slave_status()
         sibling_replication = WMFReplication(sibling, timeout=self.timeout)
         sibling_status = sibling_replication.slave_status()
+        current_lag = self.lag()
+        sibling_lag = sibling_replication.lag()
 
-        if current_status['success'] and sibling_status['success'] and \
-           self.is_sibling_of(sibling) and self.lag() < self.timeout and \
-           sibling_replication.lag() < self.timeout:
+        if current_status is not None and current_status['success'] and \
+           sibling_status is not None and sibling_status['success'] and \
+           self.is_sibling_of(sibling) and \
+           current_lag is not None and current_lag < self.timeout and \
+           sibling_lag is not None and sibling_lag < self.timeout:
             # 2. Stop replication on current host
             self.stop_slave(thread='sql')
             # 3. Wait timeout seconds
@@ -446,7 +452,8 @@ class WMFReplication:
                                                                   'are not, or other error '
                                                                   'happened')}
             else:
-                return {'success': True, }
+                return {'success': True, 'log_file': sibling_status['relay_master_log_file'],
+                        'log_pos': sibling_status['exec_master_log_pos']}
         else:
             return None
 
