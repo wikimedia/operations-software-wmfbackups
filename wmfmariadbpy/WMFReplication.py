@@ -687,7 +687,7 @@ class WMFReplication:
         if slave_status is None or not slave_status['success']:
             print('Server is not a slave or other error happened on checking the current status')
             return False
-        if slave_status['using_gtid'].lower() == mode:
+        if slave_status['using_gtid'].lower() == mode.lower():
             print('The server is already on "{}" mode'.format(mode))
             return True
         if slave_status['slave_io_running'] == 'Yes' or slave_status['slave_sql_running'] == 'Yes':
