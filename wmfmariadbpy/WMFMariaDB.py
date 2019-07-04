@@ -26,16 +26,23 @@ class WMFMariaDB:
     __last_error = None
     __debug = False
 
-    def name(self):
+    def name(self, show_db=True):
         if self.host == 'localhost':
             address = '{}[socket={}]'.format(self.host, self.socket)
         else:
-            address = '{}:{}'.format(self.host, self.port)
-        if self.database is None:
-            database = '(none)'
+            host = self.host.split('.')[0]
+            if self.port == 3306:
+                address = host
+            else:
+                address = '{}:{}'.format(host, self.port)
+        if show_db:
+            if self.database is None:
+                database = '(none)'
+            else:
+                database = self.database
+            return '{}/{}'.format(address, database)
         else:
-            database = self.database
-        return '{}/{}'.format(address, database)
+            return address
 
     def is_same_instance_as(self, other_instance):
         """
@@ -98,7 +105,7 @@ class WMFMariaDB:
             config = configparser.ConfigParser(interpolation=None)
             config.read('/root/.my.cnf')
             user = config['clientlabsdb']['user']
-            password = config['labsdb']['password']
+            password = config['clientlabsdb']['password']
             ssl = {'ca': '/etc/ssl/certs/Puppet_Internal_CA.pem'}
             mysql_sock = None
             charset = None

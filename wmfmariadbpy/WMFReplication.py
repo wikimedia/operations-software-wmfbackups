@@ -273,6 +273,7 @@ class WMFReplication:
         if not result['success'] or result['numrows'] == 0 or result['fields'][1] != 'Host' or \
            result['fields'][2] != 'Port' or result['fields'][0] != 'Server_id':
             return slaves
+        # TODO: Parallelize (nice speedup if many replicas or a host is down)
         for row in result['rows']:
             host = row[1]
             if host is None or host == '':
