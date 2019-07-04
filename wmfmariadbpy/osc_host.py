@@ -311,100 +311,100 @@ class OnlineSchemaChanger(object):
 
 
 def parse_args():
-        """Parse the execution parameters and return an object with them."""
-        parser = argparse.ArgumentParser()
+    """Parse the execution parameters and return an object with them."""
+    parser = argparse.ArgumentParser()
 
-        parser.add_argument('--host',
-                            help="the host to connect to",
-                            required=True)
-        parser.add_argument('--port', type=int,
-                            help="the port to connect to",
-                            default=3306)
+    parser.add_argument('--host',
+                        help="the host to connect to",
+                        required=True)
+    parser.add_argument('--port', type=int,
+                        help="the port to connect to",
+                        default=3306)
 
-        parser.add_argument('--user', help="username to use",
-                            default='root')
+    parser.add_argument('--user', help="username to use",
+                        default='root')
 
-        dblist_group = parser.add_mutually_exclusive_group(required=True)
-        dblist_group.add_argument('--db', nargs='+',
-                                  help="Database(s) to be altered")
-        dblist_group.add_argument('--dblist',
-                                  help="File with the list of databases")
+    dblist_group = parser.add_mutually_exclusive_group(required=True)
+    dblist_group.add_argument('--db', nargs='+',
+                              help="Database(s) to be altered")
+    dblist_group.add_argument('--dblist',
+                              help="File with the list of databases")
 
-        parser.add_argument('--table',
-                            help="Table to alter",
-                            required=True)
+    parser.add_argument('--table',
+                        help="Table to alter",
+                        required=True)
 
-        methods = ['percona', 'ddl', 'ddlonline']
-        parser.add_argument('--method',
-                            help="Method to use ({})".format(', '.join(methods)),
-                            choices=methods,
-                            default='percona')
+    methods = ['percona', 'ddl', 'ddlonline']
+    parser.add_argument('--method',
+                        help="Method to use ({})".format(', '.join(methods)),
+                        choices=methods,
+                        default='percona')
 
-        warn_group = parser.add_mutually_exclusive_group()
-        warn_group.add_argument('--warn', action='store_true', dest='warn',
-                                help="Ask for confirmation after a problem")
-        warn_group.add_argument('--no-warn', action='store_false', dest='warn',
-                                help="Don't ask for confirmation after a problem")
+    warn_group = parser.add_mutually_exclusive_group()
+    warn_group.add_argument('--warn', action='store_true', dest='warn',
+                            help="Ask for confirmation after a problem")
+    warn_group.add_argument('--no-warn', action='store_false', dest='warn',
+                            help="Don't ask for confirmation after a problem")
 
-        analyze_group = parser.add_mutually_exclusive_group()
-        analyze_group.add_argument('--analyze',
-                                   action='store_true', dest='analyze',
-                                   help="Analyze after the alter")
-        analyze_group.add_argument('--no-analyze',
-                                   action='store_false', dest='analyze',
-                                   help="Don't analyze after the alter")
+    analyze_group = parser.add_mutually_exclusive_group()
+    analyze_group.add_argument('--analyze',
+                               action='store_true', dest='analyze',
+                               help="Analyze after the alter")
+    analyze_group.add_argument('--no-analyze',
+                               action='store_false', dest='analyze',
+                               help="Don't analyze after the alter")
 
-        parser.add_argument('altersql', nargs="+",
-                            help="Modification to be applied")
+    parser.add_argument('altersql', nargs="+",
+                        help="Modification to be applied")
 
-        parser.add_argument('--debug',
-                            action='store_true',
-                            help="Show debug info")
+    parser.add_argument('--debug',
+                        action='store_true',
+                        help="Show debug info")
 
-        parser.set_defaults(warn=True)
-        parser.set_defaults(analyze=False)
+    parser.set_defaults(warn=True)
+    parser.set_defaults(analyze=False)
 
-        replicate_group = parser.add_mutually_exclusive_group()
-        replicate_group.add_argument('--replicate', action='store_true',
-                                     help="Replicate the changes")
-        replicate_group.add_argument('--no-replicate', action='store_true',
-                                     help="Don't replicate the changes")
+    replicate_group = parser.add_mutually_exclusive_group()
+    replicate_group.add_argument('--replicate', action='store_true',
+                                 help="Replicate the changes")
+    replicate_group.add_argument('--no-replicate', action='store_true',
+                                 help="Don't replicate the changes")
 
-        def valid_gtid(value):
-            pat = re.compile(r"[0-9]+")
-            if not pat.match(value):
-                error_msg = "'{}' is an invalid gtid".format(value)
-                raise argparse.ArgumentTypeError(error_msg)
-            return value
+    def valid_gtid(value):
+        pat = re.compile(r"[0-9]+")
+        if not pat.match(value):
+            error_msg = "'{}' is an invalid gtid".format(value)
+            raise argparse.ArgumentTypeError(error_msg)
+        return value
 
-        parser.add_argument('--gtid_domain_id', type=valid_gtid,
-                            help="gtid domain id")
+    parser.add_argument('--gtid_domain_id', type=valid_gtid,
+                        help="gtid domain id")
 
-        parser.add_argument('--primary-key', action='store_true',
-                            help="Don't panic when altering a primary key")
-        parser.add_argument('--no-cleanup', action='store_true',
-                            help="Don't actually switch the new and old tables on completion")
+    parser.add_argument('--primary-key', action='store_true',
+                        help="Don't panic when altering a primary key")
+    parser.add_argument('--no-cleanup', action='store_true',
+                        help="Don't actually switch the new and old tables on completion")
 
-        args = parser.parse_args()
+    args = parser.parse_args()
 
-        args.altersql = ' '.join(args.altersql)
+    args.altersql = ' '.join(args.altersql)
 
-        # Check list of databases is correct
-        if args.dblist:
-            if not args.dblist.endswith('.dblist'):
-                print("'{}' doesn't have the 'dblist' extension".format(args.dblist))
-                sys.exit(1)
+    # Check list of databases is correct
+    if args.dblist:
+        if not args.dblist.endswith('.dblist'):
+            print("'{}' doesn't have the 'dblist' extension".format(args.dblist))
+            sys.exit(1)
 
-            try:
-                with open(args.dblist) as f:
-                    args.dblist = [l.strip() for l in f if l.strip()]
-            except IOError:
-                print("Can't read '{}'".format(args.dblist))
-                sys.exit(1)
-        else:
-            args.dblist = args.db
+        try:
+            with open(args.dblist) as f:
+                args.dblist = [l.strip() for l in f if l.strip()]
+        except IOError:
+            print("Can't read '{}'".format(args.dblist))
+            sys.exit(1)
+    else:
+        args.dblist = args.db
 
-        return args
+    return args
 
 
 def main():

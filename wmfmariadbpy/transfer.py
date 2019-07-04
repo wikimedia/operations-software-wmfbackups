@@ -8,7 +8,7 @@ import re
 import sys
 import time
 
-from CuminExecution import CuminExecution as RemoteExecution
+from wmfmariadbpy.CuminExecution import CuminExecution as RemoteExecution
 
 
 def option_parse():
@@ -65,6 +65,8 @@ class Transferer(object):
         self.target_hosts = target_hosts
         self.target_paths = target_paths
         self.options = options
+        if 'type' not in options:  # default transfer type is file/directory transfer
+            options['type'] = 'file'
 
         self.remote_executor = RemoteExecution()
 

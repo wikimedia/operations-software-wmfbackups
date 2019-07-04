@@ -85,8 +85,8 @@ def main():
         for result in result_list:
             print_resultset(result)
     elif options.shard is not None:
-            print("ERROR: Shard cannot be set if host is not set to 'multi'.")
-            result = None
+        print("ERROR: Shard cannot be set if host is not set to 'multi'.")
+        result = None
     else:
         conn = WMFMariaDB(host=options.host, port=options.port,
                           database=options.database, debug=options.debug,

@@ -27,7 +27,7 @@ deleted_dblist_path = os.path.join(mediawiki_config_path, 'dblists',
 SYSTEM_DBS = ['mysql', 'information_schema', 'performance_schema', 'sys',
               'ops', 'percona']
 # ignore the following user-created databases:
-USER_DATABASES_REGEX = '^([su][0-9]+|p[0-9]+g[0-9]+)\_\_?'
+USER_DATABASES_REGEX = r'^([su][0-9]+|p[0-9]+g[0-9]+)\_\_?'
 
 
 def parse_db_file(path, format='txt'):

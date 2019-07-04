@@ -101,12 +101,12 @@ def main():
                 max_id = result['rows'][0][1]
 
     if len(empty_tables) >= len(results):
-            if options.print_every != 0:
-                print('All tables are empty')
-            sys.exit(0)
+        if options.print_every != 0:
+            print('All tables are empty')
+        sys.exit(0)
     elif len(empty_tables) > 0 and len(empty_tables) < len(results):
-            print('Some tables have rows, but the following are empty: {}'.format(','.join(empty_tables)))
-            sys.exit(1)
+        print('Some tables have rows, but the following are empty: {}'.format(','.join(empty_tables)))
+        sys.exit(1)
 
     # override obtained min_id and max_id if they have been set as parameters
     if options.from_value is not None and options.from_value > min_id:

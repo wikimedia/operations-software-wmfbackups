@@ -139,7 +139,7 @@ def get_status(options):
         uptime = get_var(mysql, 'Uptime', type='STATUS')
         ssl = get_var(mysql, 'Ssl_cipher', type='STATUS')
         ssl_expiration = get_var(mysql, 'Ssl_server_not_after', type='STATUS')
-        threads_connected = get_var(mysql, 'Threads\_connected', type='STATUS')
+        threads_connected = get_var(mysql, r'Threads\_connected', type='STATUS')
         total_queries = get_var(mysql, 'Queries', type='STATUS')
         now = time.time()  # get the time here for more exact QPS calculations
         if options.slave_status:
