@@ -1,5 +1,5 @@
 # WMFReplication.py
-import WMFMariaDB
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 import configparser
 import ipaddress
@@ -254,8 +254,8 @@ class WMFReplication:
         if slave_status is None or not slave_status['success']:
             return None
         else:
-            return WMFMariaDB.WMFMariaDB(host=slave_status['master_host'],
-                                         port=slave_status['master_port'])
+            return WMFMariaDB(host=slave_status['master_host'],
+                              port=slave_status['master_port'])
 
     def slaves(self):
         """
@@ -283,7 +283,7 @@ class WMFReplication:
             port = int(row[2])
             if port not in (0, 3306):
                 host += ':' + str(port)
-            connection = WMFMariaDB.WMFMariaDB(host)
+            connection = WMFMariaDB(host)
             if WMFReplication(connection).is_direct_replica_of(self.connection):
                 slaves.append(connection)
         return slaves

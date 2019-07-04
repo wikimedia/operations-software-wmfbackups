@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-import WMFReplication
-import WMFMariaDB
+from wmfmariadbpy.WMFReplication import WMFReplication
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 import argparse
 import sys
@@ -24,10 +24,10 @@ def handle_parameters():
 def main():
     # Preparatory steps
     options = handle_parameters()
-    instance1 = WMFMariaDB.WMFMariaDB(options.instance1)
-    instance2 = WMFMariaDB.WMFMariaDB(options.instance2)
+    instance1 = WMFMariaDB(options.instance1)
+    instance2 = WMFMariaDB(options.instance2)
     timeout = options.timeout
-    instance1_replication = WMFReplication.WMFReplication(instance1, timeout)
+    instance1_replication = WMFReplication(instance1, timeout)
 
     result = instance1_replication.stop_in_sync_with_sibling(instance2)
     if result is None:

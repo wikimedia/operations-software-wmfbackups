@@ -1,8 +1,8 @@
 #!/usr/bin/python3
 
 from CuminExecution import CuminExecution as RemoteExecution
-import WMFReplication
-import WMFMariaDB
+from wmfmariadbpy.WMFReplication import WMFReplication
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 import argparse
 import re
@@ -321,7 +321,7 @@ def move_replicas_to_new_master(master_replication, slave_replication, timeout):
         if replica.is_same_instance_as(slave_replication.connection):
             print('Nope')
             continue  # do not move the target replica to itself
-        replication = WMFReplication.WMFReplication(replica, timeout)
+        replication = WMFReplication(replica, timeout)
         print('Disabling GTID on {}...'.format(replica.name()))
         replication.set_gtid_mode('no')
         result = replication.move(new_master=slave_replication.connection, start_if_stopped=True)
@@ -435,7 +435,7 @@ def update_tendril(master, slave):
     """
     print('Updating tendril...')
     # get section of the original master
-    tendril = WMFMariaDB.WMFMariaDB(ZARCILLO_INSTANCE, database='tendril')
+    tendril = WMFMariaDB(ZARCILLO_INSTANCE, database='tendril')
     query = ("SELECT name "
              "FROM shards "
              "WHERE master_id = (SELECT id "
@@ -467,7 +467,7 @@ def update_zarcillo(master, slave):
     """
     print('Updating zarcillo...')
     # get section and dc of the original master
-    zarcillo = WMFMariaDB.WMFMariaDB(ZARCILLO_INSTANCE, database='zarcillo')
+    zarcillo = WMFMariaDB(ZARCILLO_INSTANCE, database='zarcillo')
     query = ("SELECT section, dc "
              "FROM masters "
              "WHERE instance = (SELECT name "
@@ -535,11 +535,11 @@ def update_events(master, slave):
 def main():
     # Preparatory steps
     options = handle_parameters()
-    master = WMFMariaDB.WMFMariaDB(options.master)
-    slave = WMFMariaDB.WMFMariaDB(options.slave)
+    master = WMFMariaDB(options.master)
+    slave = WMFMariaDB(options.slave)
     timeout = options.timeout
-    slave_replication = WMFReplication.WMFReplication(slave, timeout)
-    master_replication = WMFReplication.WMFReplication(master, timeout)
+    slave_replication = WMFReplication(slave, timeout)
+    master_replication = WMFReplication(master, timeout)
     replicating_master = options.replicating_master
     read_only_master = options.read_only_master
 

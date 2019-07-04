@@ -1,7 +1,7 @@
 #!/usr/bin/python3
 
-import WMFReplication
-import WMFMariaDB
+from wmfmariadbpy.WMFReplication import WMFReplication
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 import argparse
 import sys
@@ -26,12 +26,12 @@ def handle_parameters():
 def main():
     # Preparatory steps
     options = handle_parameters()
-    instance = WMFMariaDB.WMFMariaDB(options.instance)
-    new_master = WMFMariaDB.WMFMariaDB(options.new_master)
+    instance = WMFMariaDB(options.instance)
+    new_master = WMFMariaDB(options.new_master)
     timeout = options.timeout
     start_if_stopped = options.start_if_stopped
-    instance_replication = WMFReplication.WMFReplication(instance, timeout)
-    new_master_replication = WMFReplication.WMFReplication(new_master, timeout)
+    instance_replication = WMFReplication(instance, timeout)
+    new_master_replication = WMFReplication(new_master, timeout)
 
     # disable gtid
     instance_gtid = instance_replication.gtid_mode()

@@ -1,5 +1,5 @@
 #!/usr/bin/env python3
-from WMFMariaDB import WMFMariaDB
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 import argparse
 from datetime import datetime
