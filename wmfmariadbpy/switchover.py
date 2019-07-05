@@ -52,7 +52,8 @@ def handle_parameters():
                               'or intermediate master that is expected to be all the time in read only. '
                               'When this option is set, read-only will be expected on both master and '
                               'replica, and will not be enabled on switch.'))
-
+    parser.add_argument('--force', action='store_true',
+                        help='When set, do not ask for confirmation before applying the changes.')
     options = parser.parse_args()
     return options
 
@@ -532,6 +533,21 @@ def update_events(master, slave):
     return 0
 
 
+def ask_for_confirmation(master, slave):
+    """
+    Prompt console for confirmation of action of stopping instances replication
+    """
+    answer = ""
+    while answer not in ['yes', 'no']:
+        answer = input('Are you sure you want to switchover current '
+                       'master {} and promote {} instead [yes/no]? '.format(master, slave)).lower()
+        if answer not in ['yes', 'no']:
+            print('Please type "yes" or "no"')
+    if answer == 'no':
+        print('Aborting switchover without touching anything!')
+        sys.exit(0)
+
+
 def main():
     # Preparatory steps
     options = handle_parameters()
@@ -554,6 +570,9 @@ def main():
     if options.only_slave_move:
         print('SUCCESS: All slaves moved correctly, but not continuing further because --only-slave-move')
         sys.exit(0)
+
+    if not options.force:
+        ask_for_confirmation(options.master, options.slave)
 
     # core steps
     if not options.skip_heartbeat:

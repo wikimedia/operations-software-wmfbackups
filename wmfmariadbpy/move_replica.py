@@ -19,8 +19,25 @@ def handle_parameters():
                               'but it is more likely to fail if there is more lag than that between instances. '
                               'Default: 5.0 seconds.'))
     parser.add_argument('--start_if_stopped', action='store_true')
+    parser.add_argument('--force', action='store_true',
+                        help='When set, do not ask for confirmation before applying the changes.')
     options = parser.parse_args()
     return options
+
+
+def ask_for_confirmation(master, slave):
+    """
+    Prompt console for confirmation of action of stopping instances replication
+    """
+    answer = ""
+    while answer not in ['yes', 'no']:
+        answer = input('Are you sure you want to move instance '
+                       '{} to replicate directly from {} [yes/no]? '.format(master, slave)).lower()
+        if answer not in ['yes', 'no']:
+            print('Please type "yes" or "no"')
+    if answer == 'no':
+        print('Aborting replica move without touching anything!')
+        sys.exit(0)
 
 
 def main():
@@ -47,6 +64,8 @@ def main():
             print('[ERROR] GTID could not be disabled on {}'.format(new_master.name()))
             sys.exit(1)
 
+    if not options.force:
+        ask_for_confirmation(options.instance, options.new_master)
     # move
     result = instance_replication.move(new_master, start_if_stopped=start_if_stopped)
     if not result['success']:
