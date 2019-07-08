@@ -267,8 +267,8 @@ def setup_new_master_replication(slave_replication, old_master_slave_status):
         return -1
     # set gtid
     if old_master_slave_status['using_gtid'].lower() in ['slave_pos', 'current_pos']:
-        result = slave_replication.set_gtid_mode(old_master_slave_status['using_gtid'])
-        if not result['success']:
+        changed = slave_replication.set_gtid_mode(old_master_slave_status['using_gtid'])
+        if not changed:
             print('[ERROR]: Original GTID mode was not recovered on the new master')
     return 0
 
