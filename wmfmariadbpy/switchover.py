@@ -63,6 +63,8 @@ def do_preflight_checks(master_replication, slave_replication, timeout, replicat
     master = master_replication.connection
     slave = slave_replication.connection
     print('Starting preflight checks...')
+
+    # Read only values are expected 0/1 for a normal switch, 1/1 for a read only switch
     master_result = master.execute('SELECT @@GLOBAL.read_only')
     slave_result = slave.execute('SELECT @@GLOBAL.read_only')
     if not master_result['success'] or not slave_result['success']:
@@ -81,17 +83,32 @@ def do_preflight_checks(master_replication, slave_replication, timeout, replicat
     print(('* Original read only values are as expected '
            '(master: read_only={}, slave: read_only=True)').format((str(read_only_master)), ))
 
+    # Check current replica is a direct slave of the current master
     if not slave_replication.is_direct_replica_of(master):
         print('[ERROR]: {} is not a direct replica of {}'.format(slave.name(), master.name()))
         sys.exit(-1)
     print('* The host to fail over is a direct replica of the master')
 
+    # Check replication is running between hosts
     slave_status = slave_replication.slave_status()
     if slave_status['slave_sql_running'] != 'Yes' or slave_status['slave_io_running'] != 'Yes':
         print('[ERROR]: The replica is not currently running')
         sys.exit(-1)
     print('* Replication is up and running between the 2 hosts')
 
+    # Check binlog_format is the same
+    master_result = master.execute('SELECT @@GLOBAL.binlog_format')
+    slave_result = slave.execute('SELECT @@GLOBAL.binlog_format')
+    if not master_result['success'] or not slave_result['success']:
+        print('[ERROR]: Binary log format could be not read from one or more servers')
+        sys.exit(-1)
+    if master_result['rows'][0][0] != slave_result['rows'][0][0]:
+        print('[ERROR]: The binary log format of the master is {} and the slave one is {}.'.format(
+            master_result['rows'][0][0], slave_result['rows'][0][0]))
+        sys.exit(-1)
+    print('* Binary log format is the same: {}', master_result['rows'][0][0])
+
+    # Check lag is not excessive
     lag = slave_replication.lag()
     if lag is None:
         print('[ERROR]: It was impossible to measure the lag between the master and the slave')
@@ -101,6 +118,7 @@ def do_preflight_checks(master_replication, slave_replication, timeout, replicat
         sys.exit(-1)
     print('* The replication lag is acceptable: {} (lower than the configured or default timeout)'.format(str(lag)))
 
+    # Check for additional topology issues (replicating master or circular replication)
     master_slave_status = master_replication.slave_status()
     if replicating_master and master_slave_status is None:
         print('[ERROR]: --replicating-master was set, but replication is not enabled on the master')
