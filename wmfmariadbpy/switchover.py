@@ -459,7 +459,7 @@ def update_tendril(master, slave):
              "FROM shards "
              "WHERE master_id = (SELECT id "
              "                   FROM servers "
-             "                   WHERE host = '{}' AND port = %s)")
+             "                   WHERE host = '{}' AND port = {})")
     result = tendril.execute(query.format(master.host, master.port))
     if not result['success'] or result['numrows'] != 1:
         print('[WARNING] Old master not found on tendril server list')
@@ -468,7 +468,7 @@ def update_tendril(master, slave):
     # update section with new host id
     query = ("UPDATE shards "
              "SET master_id = "
-             "(SELECT id FROM servers WHERE host = '{}' and port = %s) "
+             "(SELECT id FROM servers WHERE host = '{}' and port = {}) "
              "WHERE name = '{}' LIMIT 1")
     result = tendril.execute(query.format(slave.host, slave.port, section))
     if not result['success']:
