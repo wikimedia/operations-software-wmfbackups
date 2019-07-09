@@ -343,6 +343,8 @@ def move_replicas_to_new_master(master_replication, slave_replication, timeout):
         replication = WMFReplication(replica, timeout)
         print('Disabling GTID on {}...'.format(replica.name()))
         replication.set_gtid_mode('no')
+        print('Waiting some seconds for db to catch up...')
+        time.sleep(timeout)
         result = replication.move(new_master=slave_replication.connection, start_if_stopped=True)
         if result is None or not result['success']:
             print('[ERROR]: {} failed to be moved under the new master'.format(replica.name()))
