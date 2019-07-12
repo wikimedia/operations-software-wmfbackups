@@ -106,7 +106,7 @@ def do_preflight_checks(master_replication, slave_replication, timeout, replicat
         print('[ERROR]: The binary log format of the master is {} and the slave one is {}.'.format(
             master_result['rows'][0][0], slave_result['rows'][0][0]))
         sys.exit(-1)
-    print('* Binary log format is the same: {}', master_result['rows'][0][0])
+    print('* Binary log format is the same: {}'.format(master_result['rows'][0][0]))
 
     # Check lag is not excessive
     lag = slave_replication.lag()
