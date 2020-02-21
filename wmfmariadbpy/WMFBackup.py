@@ -497,7 +497,6 @@ class WMFBackup:
             # run backup command
             self.logger.debug(cmd)
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            subprocess.Popen.wait(process)
             out, err = process.communicate()
             if backup.errors_on_output(out, err):
                 stats.fail()
@@ -514,7 +513,6 @@ class WMFBackup:
         if cmd != '':
             self.logger.debug(cmd)
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
-            subprocess.Popen.wait(process)
             out, err = process.communicate()
             if backup.errors_on_prepare(out, err):
                 self.logger.error('The mariabackup prepare process did not complete successfully')
