@@ -3,6 +3,7 @@ from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 import configparser
 import ipaddress
+from multiprocessing.pool import ThreadPool
 import socket
 import time
 
@@ -257,6 +258,39 @@ class WMFReplication:
             return WMFMariaDB(host=slave_status['master_host'],
                               port=slave_status['master_port'])
 
+    def __connect(self, row):
+        host = row[1]
+        if host is None or host == '':
+            # --report-host is not set, use server_id as the ipv4, and perform an inverse dns resolution
+            server_id = int(row[0])
+            ip = str(ipaddress.IPv4Address(server_id))
+            host = socket.gethostbyaddr(ip)[0]
+        port = int(row[2])
+        if port not in (0, 3306):
+            host += ':' + str(port)
+        connection = WMFMariaDB(host)
+        if WMFReplication(connection).is_direct_replica_of(self.connection):
+            return connection
+        return None
+
+    def __connect_in_parallel(self, hosts):
+        n = len(hosts)
+        pool = ThreadPool(processes=n)
+        async_result = list()
+        conn = list()
+        for host in hosts:
+            async_result.append(pool.apply_async(self.__connect, (host, )))
+
+        for i in range(n):
+            mysql = async_result[i].get()
+            if mysql is None or mysql.connection is None:
+                print('Could not connect to instance {}, skipping'.format(hosts[i][0]))
+            else:
+                conn.append(mysql)
+        pool.close()
+        pool.join()
+        return tuple(conn)
+
     def slaves(self):
         """
         Returns a list of WMFMariaDB objects of all currently connected replicas of the instances, as detected by
@@ -273,21 +307,7 @@ class WMFReplication:
         if not result['success'] or result['numrows'] == 0 or result['fields'][1] != 'Host' or \
            result['fields'][2] != 'Port' or result['fields'][0] != 'Server_id':
             return slaves
-        # TODO: Parallelize (nice speedup if many replicas or a host is down)
-        for row in result['rows']:
-            host = row[1]
-            if host is None or host == '':
-                # --report-host is not set, use server_id as the ipv4, and perform an inverse dns resolution
-                server_id = int(row[0])
-                ip = str(ipaddress.IPv4Address(server_id))
-                host = socket.gethostbyaddr(ip)[0]
-            port = int(row[2])
-            if port not in (0, 3306):
-                host += ':' + str(port)
-            connection = WMFMariaDB(host)
-            if WMFReplication(connection).is_direct_replica_of(self.connection):
-                slaves.append(connection)
-        return slaves
+        return self.__connect_in_parallel(result['rows'])
 
     def caught_up_to_master(self, master=None):
         """
