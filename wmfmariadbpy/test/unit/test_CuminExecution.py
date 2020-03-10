@@ -33,3 +33,13 @@ class TestCuminExecution(unittest.TestCase):
         formatted_command = self.executor.format_command(orig_cmd)
 
         self.assertEqual(' '.join(orig_cmd), formatted_command)
+
+    @patch('wmfmariadbpy.CuminExecution.cumin.Config',
+           return_value={'transport': 'clustershell', 'default_backend': 'knownhosts'})
+    def test_run_invalid_host(self, config_mock):
+        host = 'wrong_host.eqiad.wmnet'
+        command_return = self.executor.run(host, 'some command')
+
+        self.assertEqual(command_return.returncode, 1)
+        self.assertEqual(command_return.stdout, None)
+        self.assertEqual(command_return.stderr, 'host is wrong or does not match rules')

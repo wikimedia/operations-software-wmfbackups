@@ -1,9 +1,9 @@
-from multiprocessing import Process, Pipe
+from multiprocessing import Pipe, Process
 
 import cumin
 from cumin import query, transport, transports
 
-from wmfmariadbpy.RemoteExecution import RemoteExecution, CommandReturn
+from wmfmariadbpy.RemoteExecution import CommandReturn, RemoteExecution
 
 
 # TODO: Refactor with the one on ParamikoExecution or find a better approach
@@ -36,6 +36,8 @@ class CuminExecution(RemoteExecution):
 
     def run(self, host, command):
         hosts = query.Query(self.config).execute(host)
+        if not hosts:
+            return CommandReturn(1, None, 'host is wrong or does not match rules')
         target = transports.Target(hosts)
         worker = transport.Transport.new(self.config, target)
         worker.commands = [self.format_command(command)]
