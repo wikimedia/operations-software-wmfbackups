@@ -2,9 +2,9 @@
 import abc
 
 
-class CommandReturn():
+class CommandReturn:
     """
-    Class that provides a standarized method to return command execution.
+    Class that provides a standardized method to return command execution.
     It assumes the standard output and errors are "small" enough to be stored
     on memory.
     """
