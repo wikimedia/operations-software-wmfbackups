@@ -136,6 +136,67 @@ class TestTransferer(unittest.TestCase):
         command = self.transferer.decrypt_command
         self.assertEqual('', command)
 
+    def test_run_sanity_checks_failing(self):
+        """Test case for Transferer.run function which simulates sanity check failure."""
+        with patch.object(Transferer, 'sanity_checks') as mocked_sanity_check:
+            mocked_sanity_check.side_effect = ValueError('Test sanity_checks')
+            command = self.transferer.run()
+            self.assertTrue(type(command) == list)
+
+    def test_run_stoping_slave(self):
+        """Test case for Transferer.run function which provides stop_slave option"""
+        with patch.object(Transferer, 'sanity_checks') as mocked_sanity_check,\
+                patch.object(Transferer, 'stop_slave') as mocked_stop_slave:
+            self.options['stop_slave'] = True
+            #  Return value should be anything other than 0 for the if block to execute
+            mocked_stop_slave.return_value = 1
+            mocked_sanity_check.called_once()
+            command = self.transferer.run()
+            self.assertTrue(type(command) == list)
+
+    def test_run_successfully(self):
+        """Test case for Transferer.run function starting transfer successfully"""
+        with patch.object(Transferer, 'sanity_checks') as mocked_sanity_check,\
+                patch.object(Transferer, 'open_firewall') as mocked_open_firewall,\
+                patch.object(Transferer, 'copy_to') as mocked_copy_to,\
+                patch.object(Transferer, 'close_firewall') as mocked_close_firewall,\
+                patch.object(Transferer, 'after_transfer_checks') as mocked_after_transfer_checks,\
+                patch.object(Transferer, 'start_slave') as mocked_start_slave:
+            mocked_copy_to.return_value = 0
+            mocked_close_firewall.return_value = 0
+            mocked_after_transfer_checks.return_value = 0
+            mocked_start_slave.return_value = 0
+            mocked_sanity_check.called_once()
+            mocked_open_firewall.called_once()
+            command = self.transferer.run()
+            self.assertTrue(type(command) == list)
+
+    def test_run_start_slave(self):
+        """Test case for Transferer.run function for when it runs the
+           start_slave function with the stop_slave option
+        """
+        with patch.object(Transferer, 'stop_slave') as mocked_stop_slave,\
+                patch.object(Transferer, 'sanity_checks') as mocked_sanity_check,\
+                patch.object(Transferer, 'open_firewall') as mocked_open_firewall,\
+                patch.object(Transferer, 'copy_to') as mocked_copy_to,\
+                patch.object(Transferer, 'close_firewall') as mocked_close_firewall,\
+                patch.object(Transferer, 'after_transfer_checks') as mocked_after_transfer_checks,\
+                patch.object(Transferer, 'start_slave') as mocked_start_slave:
+            self.options['stop_slave'] = True
+            # We need to skip the first if statement
+            # which checks the stop slave option
+            mocked_stop_slave.return_value = 0
+            mocked_copy_to.return_value = 0
+            mocked_close_firewall.return_value = 0
+            mocked_after_transfer_checks.return_value = 0
+            # Return value should be anything other than 0
+            # for this if block to execute
+            mocked_start_slave.return_value = 1
+            mocked_sanity_check.called_once()
+            mocked_open_firewall.called_once()
+            command = self.transferer.run()
+            self.assertTrue(type(command) == list)
+
 
 class TestArgumentParsing(unittest.TestCase):
     """Test cases for the command line arguments parsing."""
@@ -186,7 +247,8 @@ class TestArgumentParsing(unittest.TestCase):
                      '{}:{}'.format(src, src_path),
                      '{}:{}'.format(trg1, trg1_path),
                      '{}:{}'.format(trg2, trg2_path)]
-        (source_host, source_path, target_hosts, target_paths, other_options) = self.option_parse(test_args)
+        (source_host, source_path, target_hosts, target_paths, other_options)\
+            = self.option_parse(test_args)
 
         self.assertEqual(src, source_host)
         self.assertEqual(src_path, source_path)
@@ -200,7 +262,8 @@ class TestArgumentParsing(unittest.TestCase):
         """Test port param."""
         port = 12345
         test_args = ['transfer', 'source:path', 'target:path', '--port', str(port)]
-        (source_host, source_path, target_hosts, target_paths, other_options) = self.option_parse(test_args)
+        (source_host, source_path, target_hosts, target_paths, other_options)\
+            = self.option_parse(test_args)
         self.assertEqual(other_options['port'], port)
         self.assertTrue(other_options['compress'])
         self.assertTrue(other_options['encrypt'])
@@ -210,12 +273,14 @@ class TestArgumentParsing(unittest.TestCase):
         base_args = ['transfer', 'source:path', 'target:path']
 
         compress_test_args = base_args + ['--compress']
-        (source_host, source_path, target_hosts, target_paths, other_options) = self.option_parse(compress_test_args)
+        (source_host, source_path, target_hosts, target_paths, other_options)\
+            = self.option_parse(compress_test_args)
         self.assertTrue(other_options['compress'])
         self.assertTrue(other_options['encrypt'])
 
         no_compress_test_args = base_args + ['--no-compress']
-        (source_host, source_path, target_hosts, target_paths, other_options) = self.option_parse(no_compress_test_args)
+        (source_host, source_path, target_hosts, target_paths, other_options)\
+            = self.option_parse(no_compress_test_args)
         self.assertFalse(other_options['compress'])
         self.assertTrue(other_options['encrypt'])
 
@@ -224,11 +289,13 @@ class TestArgumentParsing(unittest.TestCase):
         base_args = ['transfer', 'source:path', 'target:path']
 
         encrypt_test_args = base_args + ['--encrypt']
-        (source_host, source_path, target_hosts, target_paths, other_options) = self.option_parse(encrypt_test_args)
+        (source_host, source_path, target_hosts, target_paths, other_options)\
+            = self.option_parse(encrypt_test_args)
         self.assertTrue(other_options['compress'])
         self.assertTrue(other_options['encrypt'])
 
         no_encrypt_test_args = base_args + ['--no-encrypt']
-        (source_host, source_path, target_hosts, target_paths, other_options) = self.option_parse(no_encrypt_test_args)
+        (source_host, source_path, target_hosts, target_paths, other_options)\
+            = self.option_parse(no_encrypt_test_args)
         self.assertTrue(other_options['compress'])
         self.assertFalse(other_options['encrypt'])
