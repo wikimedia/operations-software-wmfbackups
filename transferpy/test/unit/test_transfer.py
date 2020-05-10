@@ -257,7 +257,7 @@ class TestArgumentParsing(unittest.TestCase):
         self.assertEqual(src_path, source_path)
         self.assertEqual([trg1, trg2], target_hosts)
         self.assertEqual([trg1_path, trg2_path], target_paths)
-        self.assertEqual(other_options['port'], 4444)
+        self.assertEqual(other_options['port'], 0)
         self.assertTrue(other_options['compress'])
         self.assertTrue(other_options['encrypt'])
 

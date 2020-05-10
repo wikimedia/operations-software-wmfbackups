@@ -12,7 +12,7 @@ def option_parse():
     :return: sender host, sender path, receiver hosts, receiver paths, other options
     """
     parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=4444)
+    parser.add_argument("--port", type=int, default=0)
     parser.add_argument("--type", choices=['file', 'xtrabackup', 'decompress'],
                         dest='transfer_type', default='file')
     parser.add_argument("source")
