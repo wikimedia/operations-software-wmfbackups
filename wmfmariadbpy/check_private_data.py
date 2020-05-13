@@ -126,8 +126,7 @@ def column_has_private_data(conn, database, table, column):
         result = cursor.fetchall()
         if int(result[0][0]) > 0:
             has_private_data = True
-            print('-- Found private data: {}.{} {}'.format(database, table,
-                                                           column, column))
+            print('-- Found private data: {}.{} {}'.format(database, table, column))
     # Ignore "table doesn't exist" errors
     except pymysql.err.ProgrammingError:
         pass

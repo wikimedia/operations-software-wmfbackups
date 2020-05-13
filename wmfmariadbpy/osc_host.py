@@ -397,7 +397,7 @@ def parse_args():
 
         try:
             with open(args.dblist) as f:
-                args.dblist = [l.strip() for l in f if l.strip()]
+                args.dblist = [i.strip() for i in f if i.strip()]
         except IOError:
             print("Can't read '{}'".format(args.dblist))
             sys.exit(1)
