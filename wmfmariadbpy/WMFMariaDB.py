@@ -68,7 +68,10 @@ class WMFMariaDB:
             if os.getuid() == 0:
                 user = 'root'
             else:
-                user = os.getlogin()
+                try:
+                    user = os.getlogin()
+                except OSError:
+                    user = 'root'
             if port == 3306:
                 mysql_sock = config['client']['socket']
             elif port >= 3311 and port <= 3319:
