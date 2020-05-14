@@ -1,0 +1,1 @@
+"""wmfmariadbpy unit tests."""

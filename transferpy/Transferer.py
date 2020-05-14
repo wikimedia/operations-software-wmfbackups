@@ -1,61 +1,14 @@
 #!/usr/bin/python3
 
-import argparse
 import base64
 import os
 import os.path
 import re
-import sys
 import time
 
-from wmfmariadbpy.CuminExecution import CuminExecution as RemoteExecution
-
-
-def option_parse():
-    """
-    Parses the input parameters and returns them as a list.
-    """
-    parser = argparse.ArgumentParser()
-    parser.add_argument("--port", type=int, default=4444)
-    parser.add_argument("--type", choices=['file', 'xtrabackup', 'decompress'],
-                        dest='transfer_type', default='file')
-    parser.add_argument("source")
-    parser.add_argument("target", nargs='+')
-
-    compress_group = parser.add_mutually_exclusive_group()
-    compress_group.add_argument('--compress', action='store_true', dest='compress')
-    compress_group.add_argument('--no-compress', action='store_false', dest='compress')
-    parser.set_defaults(compress=True)
-
-    encrypt_group = parser.add_mutually_exclusive_group()
-    encrypt_group.add_argument('--encrypt', action='store_true', dest='encrypt')
-    encrypt_group.add_argument('--no-encrypt', action='store_false', dest='encrypt')
-    parser.set_defaults(encrypt=True)
-
-    checksum_group = parser.add_mutually_exclusive_group()
-    checksum_group.add_argument('--checksum', action='store_true', dest='checksum')
-    checksum_group.add_argument('--no-checksum', action='store_false', dest='checksum')
-    parser.set_defaults(checksum=True)
-
-    parser.add_argument('--stop-slave', action='store_true', dest='stop_slave')
-
-    options = parser.parse_args()
-    source_host = options.source.split(':', 1)[0]
-    source_path = options.source.split(':', 1)[1]
-    target_hosts = []
-    target_paths = []
-    for target in options.target:
-        target_hosts.append(target.split(':', 1)[0])
-        target_paths.append(target.split(':', 1)[1])
-    other_options = {
-        'port': options.port,
-        'type': options.transfer_type,
-        'compress': True if options.transfer_type == 'decompress' else options.compress,
-        'encrypt': options.encrypt,
-        'checksum': False if not options.transfer_type == 'file' else options.checksum,
-        'stop_slave': False if not options.transfer_type == 'xtrabackup' else options.stop_slave
-    }
-    return source_host, source_path, target_hosts, target_paths, other_options
+from transferpy.RemoteExecution.CuminExecution import CuminExecution as RemoteExecution
+from transferpy.Firewall import Firewall
+from transferpy.MariaDB import MariaDB
 
 
 class Transferer(object):
@@ -69,6 +22,8 @@ class Transferer(object):
             options['type'] = 'file'
 
         self.remote_executor = RemoteExecution()
+        self.firewall = Firewall(self.remote_executor)
+        self.mariadb = MariaDB(self.remote_executor)
 
         self.source_is_dir = False
         self.source_is_socket = False
@@ -315,23 +270,6 @@ class Transferer(object):
             self.remote_executor.wait_job(target_host, job)
         return result.returncode
 
-    def open_firewall(self, target_host):
-        command = ['/sbin/iptables', '-A', 'INPUT', '-p', 'tcp', '-s',
-                   '{}'.format(self.source_host),
-                   '--dport', '{}'.format(self.options['port']),
-                   '-j', 'ACCEPT']
-        result = self.run_command(target_host, command)
-        if result.returncode != 0:
-            raise Exception('iptables execution failed')
-
-    def close_firewall(self, target_host):
-        command = ['/sbin/iptables', '-D', 'INPUT', '-p', 'tcp', '-s',
-                   '{}'.format(self.source_host),
-                   '--dport', '{}'.format(self.options['port']),
-                   '-j', 'ACCEPT']
-        result = self.run_command(target_host, command)
-        return result.returncode
-
     def sanity_checks(self):
         """
         Set of preflight checks for the transfer- raise an exception if
@@ -431,26 +369,6 @@ class Transferer(object):
               .format(final_size, self.source_host, target_host))
         return 0
 
-    def start_slave(self, host, socket):
-        """
-        Start slave on instance of the given host and socket
-        """
-        command = ['/usr/local/bin/mysql', '--socket', socket,
-                   '--connect-timeout=10',
-                   '--execute="START SLAVE"']
-        result = self.run_command(host, command)
-        return result.returncode
-
-    def stop_slave(self, host, socket):
-        """
-        Stop slave on instance of the given host and socket
-        """
-        command = ['/usr/local/bin/mysql', '--socket', socket,
-                   '--connect-timeout=10',
-                   '--execute="STOP SLAVE"']
-        result = self.run_command(host, command)
-        return result.returncode
-
     def run(self):
         """
         Transfers the file (or the directory and all its contents) given on
@@ -467,7 +385,7 @@ class Transferer(object):
 
         # stop slave if requested
         if self.options.get('stop_slave', False):
-            result = self.stop_slave(self.source_host, self.source_path)
+            result = self.mariadb.stop_replication(self.source_host, self.source_path)
             if result != 0:
                 print("ERROR: Stop slave failed")
                 return [-2]
@@ -481,10 +399,10 @@ class Transferer(object):
         # actual transfer process- this is done serially until we implement a
         # multicast-like process
         for target_host, target_path in zip(self.target_hosts, self.target_paths):
-            self.open_firewall(target_host)
+            self.firewall.open(self.source_host, target_host, self.options['port'])
             result = self.copy_to(target_host, target_path)
 
-            if self.close_firewall(target_host) != 0:
+            if self.firewall.close(self.source_host, target_host, self.options['port']) != 0:
                 print('WARNING: Firewall\'s temporary rule could not be deleted')
 
             transfer_sucessful.append(self.after_transfer_checks(result,
@@ -492,20 +410,9 @@ class Transferer(object):
                                                                  target_path))
 
         if self.options.get('stop_slave', False):
-            result = self.start_slave(self.source_host, self.source_path)
+            result = self.mariadb.start_replication(self.source_host, self.source_path)
             if result != 0:
                 print("ERROR: Start slave failed")
                 return [-3]
 
         return transfer_sucessful
-
-
-def main():
-    (source_host, source_path, target_hosts, target_paths, other_options) = option_parse()
-    t = Transferer(source_host, source_path, target_hosts, target_paths, other_options)
-    result = t.run()
-    sys.exit(max(result))
-
-
-if __name__ == "__main__":
-    main()

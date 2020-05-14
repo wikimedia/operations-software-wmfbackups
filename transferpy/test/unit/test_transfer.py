@@ -3,14 +3,15 @@ import sys
 import unittest
 from unittest.mock import patch, MagicMock
 
-from wmfmariadbpy.transfer import Transferer, option_parse
+from transferpy.transfer import option_parse
+from transferpy.Transferer import Transferer
 
-from wmfmariadbpy.test.utils import hide_stderr
+from transferpy.test.utils import hide_stderr
 
 
 class TestTransferer(unittest.TestCase):
 
-    @patch('wmfmariadbpy.transfer.RemoteExecution')
+    @patch('transferpy.Transferer.RemoteExecution')
     def setUp(self, executor_mock):
         self.executor = MagicMock()
         executor_mock.return_value = self.executor
@@ -146,10 +147,10 @@ class TestTransferer(unittest.TestCase):
     def test_run_stoping_slave(self):
         """Test case for Transferer.run function which provides stop_slave option"""
         with patch.object(Transferer, 'sanity_checks') as mocked_sanity_check,\
-                patch.object(Transferer, 'stop_slave') as mocked_stop_slave:
+                patch('transferpy.Transferer.MariaDB.stop_replication') as mocked_stop_replication:
             self.options['stop_slave'] = True
             #  Return value should be anything other than 0 for the if block to execute
-            mocked_stop_slave.return_value = 1
+            mocked_stop_replication.return_value = 1
             mocked_sanity_check.called_once()
             command = self.transferer.run()
             self.assertTrue(type(command) == list)
@@ -157,15 +158,16 @@ class TestTransferer(unittest.TestCase):
     def test_run_successfully(self):
         """Test case for Transferer.run function starting transfer successfully"""
         with patch.object(Transferer, 'sanity_checks') as mocked_sanity_check,\
-                patch.object(Transferer, 'open_firewall') as mocked_open_firewall,\
+                patch('transferpy.Transferer.Firewall.open') as mocked_open_firewall,\
                 patch.object(Transferer, 'copy_to') as mocked_copy_to,\
-                patch.object(Transferer, 'close_firewall') as mocked_close_firewall,\
+                patch('transferpy.Transferer.Firewall.close') as mocked_close_firewall,\
                 patch.object(Transferer, 'after_transfer_checks') as mocked_after_transfer_checks,\
-                patch.object(Transferer, 'start_slave') as mocked_start_slave:
+                patch('transferpy.Transferer.MariaDB.start_replication') as mocked_start_replication:
+            self.options['port'] = 4444
             mocked_copy_to.return_value = 0
             mocked_close_firewall.return_value = 0
             mocked_after_transfer_checks.return_value = 0
-            mocked_start_slave.return_value = 0
+            mocked_start_replication.return_value = 0
             mocked_sanity_check.called_once()
             mocked_open_firewall.called_once()
             command = self.transferer.run()
@@ -175,23 +177,24 @@ class TestTransferer(unittest.TestCase):
         """Test case for Transferer.run function for when it runs the
            start_slave function with the stop_slave option
         """
-        with patch.object(Transferer, 'stop_slave') as mocked_stop_slave,\
+        with patch('transferpy.Transferer.MariaDB.stop_replication') as mocked_stop_replication,\
                 patch.object(Transferer, 'sanity_checks') as mocked_sanity_check,\
-                patch.object(Transferer, 'open_firewall') as mocked_open_firewall,\
+                patch('transferpy.Transferer.Firewall.open') as mocked_open_firewall,\
                 patch.object(Transferer, 'copy_to') as mocked_copy_to,\
-                patch.object(Transferer, 'close_firewall') as mocked_close_firewall,\
+                patch('transferpy.Transferer.Firewall.close') as mocked_close_firewall,\
                 patch.object(Transferer, 'after_transfer_checks') as mocked_after_transfer_checks,\
-                patch.object(Transferer, 'start_slave') as mocked_start_slave:
+                patch('transferpy.Transferer.MariaDB.start_replication') as mocked_start_replication:
+            self.options['port'] = 4444
             self.options['stop_slave'] = True
             # We need to skip the first if statement
             # which checks the stop slave option
-            mocked_stop_slave.return_value = 0
+            mocked_stop_replication.return_value = 0
             mocked_copy_to.return_value = 0
             mocked_close_firewall.return_value = 0
             mocked_after_transfer_checks.return_value = 0
             # Return value should be anything other than 0
             # for this if block to execute
-            mocked_start_slave.return_value = 1
+            mocked_start_replication.return_value = 1
             mocked_sanity_check.called_once()
             mocked_open_firewall.called_once()
             command = self.transferer.run()

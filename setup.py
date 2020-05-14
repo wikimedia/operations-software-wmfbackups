@@ -8,6 +8,7 @@ setup(
     url='https://phabricator.wikimedia.org/diffusion/OSMD/',
     packages=(
         'wmfmariadbpy',
+        'transferpy',
     ),
     install_requires=[
         'pymysql',
@@ -23,7 +24,7 @@ setup(
         # TODO: Expand
         'console_scripts': [
             'osc_host = wmfmariadbpy.osc_host:main',
-            'transfer = wmfmariadbpy.transfer:main',
+            'transfer = transferpy.transfer:main',
         ],
     },
     test_suite='wmfmariadbpy.test',
