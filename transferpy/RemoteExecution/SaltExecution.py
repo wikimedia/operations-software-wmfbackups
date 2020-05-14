@@ -1,6 +1,6 @@
 #!/usr/bin/python3
-from RemoteExecution import RemoteExecution
-from LocalExecution import LocalExecution
+from transferpy.RemoteExecution.RemoteExecution import RemoteExecution
+from transferpy.RemoteExecution.LocalExecution import LocalExecution
 
 import shlex
 # Salt is not yet Python3-compatible

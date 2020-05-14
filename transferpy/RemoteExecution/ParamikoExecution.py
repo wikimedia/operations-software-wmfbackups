@@ -1,5 +1,5 @@
 #!/usr/bin/python3
-from RemoteExecution import RemoteExecution, CommandReturn
+from transferpy.RemoteExecution.RemoteExecution import RemoteExecution, CommandReturn
 
 from multiprocessing import Process, Pipe
 import paramiko

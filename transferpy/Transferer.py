@@ -22,7 +22,6 @@ class Transferer(object):
             options['type'] = 'file'
 
         self.remote_executor = RemoteExecution()
-        self.firewall = Firewall(self.remote_executor)
         self.mariadb = MariaDB(self.remote_executor)
 
         self.source_is_dir = False
@@ -399,11 +398,13 @@ class Transferer(object):
         # actual transfer process- this is done serially until we implement a
         # multicast-like process
         for target_host, target_path in zip(self.target_hosts, self.target_paths):
-            self.firewall.open(self.source_host, target_host, self.options['port'])
+            firewall_handler = Firewall(target_host, self.remote_executor)
+            firewall_handler.open(self.source_host, self.options['port'])
             result = self.copy_to(target_host, target_path)
 
-            if self.firewall.close(self.source_host, target_host, self.options['port']) != 0:
+            if firewall_handler.close(self.source_host, self.options['port']) != 0:
                 print('WARNING: Firewall\'s temporary rule could not be deleted')
+            del firewall_handler
 
             transfer_sucessful.append(self.after_transfer_checks(result,
                                                                  target_host,
