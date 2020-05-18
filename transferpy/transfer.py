@@ -8,6 +8,8 @@ from transferpy.Transferer import Transferer
 def option_parse():
     """
     Parses the input parameters and returns them as a list.
+
+    :return: sender host, sender path, receiver hosts, receiver paths, other options
     """
     parser = argparse.ArgumentParser()
     parser.add_argument("--port", type=int, default=4444)
@@ -53,6 +55,11 @@ def option_parse():
 
 
 def main():
+    """
+    Main of transfer framework.
+
+    :return: system exit
+    """
     (source_host, source_path, target_hosts, target_paths, other_options) = option_parse()
     t = Transferer(source_host, source_path, target_hosts, target_paths, other_options)
     result = t.run()
