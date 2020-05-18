@@ -20,6 +20,14 @@ class RemoteExecution(metaclass=abc.ABCMeta):
     execution methods.
     """
 
+    def __init__(self, options):
+        """
+        Initialize RemoteExecution instance variables.
+
+        :param options: dictionary of options
+        """
+        pass
+
     @abc.abstractmethod
     def run(self, host, command):
         """

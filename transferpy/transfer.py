@@ -35,6 +35,8 @@ def option_parse():
 
     parser.add_argument('--stop-slave', action='store_true', dest='stop_slave')
 
+    parser.add_argument('--verbose', action='store_true')
+
     options = parser.parse_args()
     source_host = options.source.split(':', 1)[0]
     source_path = options.source.split(':', 1)[1]
@@ -49,7 +51,8 @@ def option_parse():
         'compress': True if options.transfer_type == 'decompress' else options.compress,
         'encrypt': options.encrypt,
         'checksum': False if not options.transfer_type == 'file' else options.checksum,
-        'stop_slave': False if not options.transfer_type == 'xtrabackup' else options.stop_slave
+        'stop_slave': False if not options.transfer_type == 'xtrabackup' else options.stop_slave,
+        'verbose': options.verbose
     }
     return source_host, source_path, target_hosts, target_paths, other_options
 

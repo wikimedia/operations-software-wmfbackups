@@ -16,7 +16,7 @@ class TestTransferer(unittest.TestCase):
         self.executor = MagicMock()
         executor_mock.return_value = self.executor
 
-        self.options = {}
+        self.options = {'verbose': False}
 
         self.transferer = Transferer('source', 'path',
                                      ['target'], ['path'],

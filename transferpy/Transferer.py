@@ -21,7 +21,8 @@ class Transferer(object):
         if 'type' not in options:  # default transfer type is file/directory transfer
             options['type'] = 'file'
 
-        self.remote_executor = RemoteExecution()
+        remote_execution_options = {'verbose': self.options['verbose']}
+        self.remote_executor = RemoteExecution(remote_execution_options)
         self.mariadb = MariaDB(self.remote_executor)
 
         self.source_is_dir = False
