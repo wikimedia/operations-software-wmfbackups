@@ -22,11 +22,11 @@ class RawOption(argparse.HelpFormatter):
         return argparse.HelpFormatter._split_lines(self, text, width)
 
 
-def option_parse():
+def parse_arguments():
     """
-    Parses the input parameters and returns them as a list.
+    Parses the input parameters.
 
-    :return: sender host, sender path, receiver hosts, receiver paths, other options
+    :return: parser object
     """
     parser = argparse.ArgumentParser(description="transfer is a Python 3 framework intended to "
                                                  "move large files or directory trees between WMF "
@@ -90,8 +90,16 @@ def option_parse():
     parser.add_argument('--verbose', action='store_true',
                         help="Outputs relevant information about transfer + information about Cuminexecution."
                              " By default, the output contains only relevant information about the transfer.")
+    return parser
 
-    options = parser.parse_args()
+
+def option_parse():
+    """
+    Parses the input parameters and returns them as a list.
+
+    :return: sender host, sender path, receiver hosts, receiver paths, other options
+    """
+    options = parse_arguments().parse_args()
     source_host = options.source.split(':', 1)[0]
     source_path = options.source.split(':', 1)[1]
     target_hosts = []
