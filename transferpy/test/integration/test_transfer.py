@@ -29,19 +29,22 @@ class TestTransferer(unittest.TestCase):
         time.sleep(3)
         return jobs
 
-    def _kill_use_ports(self, host, jobs):
+    def _kill_use_ports(self, host, jobs, ports):
         """
         Kill the jobs on the given host.
 
         :param host: host on which the jobs to be killed
         :param jobs: list of jobs to be killed
+        :param ports: list of ports used
         """
         for job in jobs:
             self.transferer.remote_executor.kill_job(host, job)
+        for p in ports:
+            self.transferer.firewall_handler.kill_process(p)
 
     def setUp(self):
         """Setup the tests."""
-        self.options = {}
+        self.options = {'verbose': False}
         self.host = self.HOST_NAME
         self.transferer = Transferer(self.host, 'path',
                                      [self.host], ['path'],
@@ -57,7 +60,7 @@ class TestTransferer(unittest.TestCase):
         self.options['port'] = self.transferer.firewall_handler.open(self.host, self.options['port'])
 
         # Close ports
-        self._kill_use_ports(self.host, jobs)
+        self._kill_use_ports(self.host, jobs, use_ports)
         if self.transferer.firewall_handler.close(self.host, self.options['port']) != 0:
             print('WARNING: Firewall\'s temporary rule could not be deleted')
 

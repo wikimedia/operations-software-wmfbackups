@@ -26,6 +26,38 @@ class Firewall(object):
         command = ["netstat -altn | awk '{print $4}' | awk -F: '{print $NF}' | grep ^44[0-9][0-9]$ || echo 0"]
         return command
 
+    def find_pid(self, target_port):
+        """
+        Finds pid of the process based on the port it is using.
+
+        :param target_port: the port using by process
+        """
+        command = "fuser {}/tcp".format(target_port)
+        result = self.run_command(command)
+        if result.returncode != 0:
+            raise Exception('failed to find PID based on the port {} on {}'
+                            .format(target_port, self.target_host))
+        else:
+            try:
+                pid = int(result.stdout.split(':')[1].strip())
+            except Exception as e:
+                raise Exception('failed to find PID based on the port {} on {}, {}'
+                                .format(target_port, self.target_host, str(e)))
+        return pid
+
+    def kill_process(self, target_port):
+        """
+        Kill the process based on the port it is using.
+
+        :param target_port: the port using by process
+        :return: raises exception if not successful
+        """
+        command = "fuser -k {}/tcp || echo 0".format(target_port)
+        result = self.run_command(command)
+        if result.returncode != 0:
+            raise Exception('failed to kill process based on the port {} on {}'
+                            .format(target_port, self.target_host))
+
     def run_command(self, command):
         """
         Executes command on the target host.
