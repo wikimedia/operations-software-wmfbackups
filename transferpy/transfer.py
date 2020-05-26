@@ -7,6 +7,7 @@ from transferpy.Transferer import Transferer
 
 class RawOption(argparse.HelpFormatter):
     """Class to format ArgumentParser help"""
+
     def _split_lines(self, text, width):
         """
         Formats the given text by splitting the lines at '\n'.
@@ -93,6 +94,23 @@ def parse_arguments():
     return parser
 
 
+def split_target(target):
+    """
+    Splits the target string to target hostname and path
+
+    :param target: string in the form of hostname:target-path
+    :return: if successful: target hostname, path
+             else system exit
+    """
+    if target.count(':') == 1:
+        host, path = target.split(':')
+        if host and path:
+            return host, path
+    print("ERROR: Source/Destination must contain the fully qualified name of the host"
+          " and absolute path separated by a colon")
+    sys.exit(2)
+
+
 def option_parse():
     """
     Parses the input parameters and returns them as a list.
@@ -100,13 +118,13 @@ def option_parse():
     :return: sender host, sender path, receiver hosts, receiver paths, other options
     """
     options = parse_arguments().parse_args()
-    source_host = options.source.split(':', 1)[0]
-    source_path = options.source.split(':', 1)[1]
+    source_host, source_path = split_target(options.source)
     target_hosts = []
     target_paths = []
     for target in options.target:
-        target_hosts.append(target.split(':', 1)[0])
-        target_paths.append(target.split(':', 1)[1])
+        target_host, target_path = split_target(target)
+        target_hosts.append(target_host)
+        target_paths.append(target_path)
     other_options = {
         'port': options.port,
         'type': options.transfer_type,

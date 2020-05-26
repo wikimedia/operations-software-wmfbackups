@@ -231,12 +231,12 @@ class TestArgumentParsing(unittest.TestCase):
     def test_bad_source(self):
         """Test errors with the source."""
         test_args = ['transfer', 'source', 'target:path']
-        self.check_bad_args(test_args, expected_error=IndexError)
+        self.check_bad_args(test_args)
 
     def test_bad_target(self):
         """Test errors with the target."""
         test_args = ['transfer', 'source:path', 'target']
-        self.check_bad_args(test_args, expected_error=IndexError)
+        self.check_bad_args(test_args)
 
     def test_just_source_and_targets(self):
         """Test call with just source and targets."""
