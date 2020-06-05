@@ -2,8 +2,8 @@
 
 # Dependencies: python3 python3-pymysql python3-yaml
 #               mydumper at /usr/bin/mydumper (if dumps are used)
-#               wmf-mariadb101 (for /opt/wmf-mariadb101/bin/mariabackup, if snapshoting is used)
-#               pigz on /usr/bin/pigz (if snapshoting is used)
+#               wmf-mariadb10* (or any xtrabackup installation, if snapshotting is used)
+#               pigz on /usr/bin/pigz (if snapshotting or compression is used)
 #               tar at /bin/tar
 #               TLS certificate installed at /etc/ssl/certs/Puppet_Internal_CA.pem (if data
 #               gathering metrics are used)
