@@ -16,6 +16,7 @@ HEARTBEAT_EXEC = '/usr/bin/perl /usr/local/bin/pt-heartbeat-wikimedia --defaults
 --interval={2} --set-vars=binlog_format=STATEMENT -S {3} --daemonize \
 --pid /var/run/pt-heartbeat.pid'
 
+TENDRIL_INSTANCE = 'db1115'  # instance_name:port format
 ZARCILLO_INSTANCE = 'db2093'  # instance_name:port format
 
 
@@ -456,7 +457,7 @@ def update_tendril(master, slave):
     """
     print('Updating tendril...')
     # get section of the original master
-    tendril = WMFMariaDB(ZARCILLO_INSTANCE, database='tendril')
+    tendril = WMFMariaDB(TENDRIL_INSTANCE, database='tendril')
     query = ("SELECT name "
              "FROM shards "
              "WHERE master_id = (SELECT id "
