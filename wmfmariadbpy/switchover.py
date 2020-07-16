@@ -17,7 +17,7 @@ HEARTBEAT_EXEC = '/usr/bin/perl /usr/local/bin/pt-heartbeat-wikimedia --defaults
 --pid /var/run/pt-heartbeat.pid'
 
 TENDRIL_INSTANCE = 'db1115'  # instance_name:port format
-ZARCILLO_INSTANCE = 'db2093'  # instance_name:port format
+ZARCILLO_INSTANCE = 'db1115'  # instance_name:port format
 
 
 def handle_parameters():
