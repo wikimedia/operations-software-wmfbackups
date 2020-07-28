@@ -1,0 +1,5 @@
+wmfmariadbpy (0.1) buster-wikimedia; urgency=medium
+
+  * Initial release.
+
+ -- Stephen Shirley <sshirley@wikimedia.org>  Wed, 15 Jul 2020 14:25:43 +0200

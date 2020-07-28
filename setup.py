@@ -10,7 +10,7 @@ setup(
         'wmfmariadbpy',
     ),
     install_requires=[
-        'pymysql',
+        'pymysql>=0.9.3',
         'tabulate',
         'cumin'
     ],
@@ -22,7 +22,13 @@ setup(
     entry_points={
         # TODO: Expand
         'console_scripts': [
-            'osc_host = wmfmariadbpy.osc_host:main',
+            'db-compare = wmfmariadbpy.compare:main',
+            'mysql.py = wmfmariadbpy.mysql:main',
+            'db-osc-host = wmfmariadbpy.osc_host:main',
+            'db-switchover = wmfmariadbpy.switchover:main',
+            'db-replication-tree = wmfmariadbpy.replication_tree:main',
+            'db-move-replica = wmfmariadbpy.move_replica:main',
+            'db-stop-in-sync = wmfmariadbpy.stop_in_sync:main',
         ],
     },
     test_suite='wmfmariadbpy.test',
