@@ -4,7 +4,7 @@ import sys
 import unittest
 from unittest.mock import patch, call, MagicMock, PropertyMock
 
-from wmfmariadbpy.osc_host import OnlineSchemaChanger, parse_args
+from wmfmariadbpy.cli_admin.osc_host import OnlineSchemaChanger, parse_args
 
 from wmfmariadbpy.test.utils import hide_stderr
 
@@ -33,7 +33,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         connection.disconnect.assert_called_once_with()
 
-    @patch('wmfmariadbpy.osc_host.WMFMariaDB')
+    @patch('wmfmariadbpy.cli_admin.osc_host.WMFMariaDB')
     def test_connection(self, mock):
         """Test connection creation."""
         new_connection = MagicMock()
@@ -48,7 +48,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
                                      port=self.conf.port,
                                      debug=self.conf.debug)
 
-    @patch('wmfmariadbpy.osc_host.WMFMariaDB')
+    @patch('wmfmariadbpy.cli_admin.osc_host.WMFMariaDB')
     @patch('builtins.print')
     @patch('sys.exit')
     def test_failed_connection(self, exit_mock, print_mock, db_mock):
@@ -100,7 +100,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_ddl_args(self):
         """Test ddl argument construction."""
-        with patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.ddl_rep',
+        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_rep',
                    new_callable=PropertyMock) as mock_ddlrep:
             rep_args = ['rep_arg1', 'rep_arg2']
             mock_ddlrep.return_value = rep_args
@@ -178,7 +178,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_dry_run_args(self):
         """Test default Percona Toolkit OSC args for the dry run."""
-        with patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_rep',
+        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
                    new_callable=PropertyMock) as mock_ptrep:
             rep_args = ['rep_arg1', 'rep_arg2']
             mock_ptrep.return_value = rep_args
@@ -195,7 +195,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_dry_run_args_primery_key(self):
         """Test Percona Toolkit OSC args for the dry run with primary-key option."""
-        with patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_rep',
+        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
                    new_callable=PropertyMock) as mock_ptrep:
             rep_args = ['rep_arg1', 'rep_arg2']
             mock_ptrep.return_value = rep_args
@@ -213,7 +213,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_args(self):
         """Test default Percona Toolkit OSC args."""
-        with patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_rep',
+        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
                    new_callable=PropertyMock) as mock_ptrep:
             rep_args = ['rep_arg1', 'rep_arg2']
             mock_ptrep.return_value = rep_args
@@ -231,7 +231,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_args_primery_key(self):
         """Test Percona Toolkit OSC args with primary-key option."""
-        with patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_rep',
+        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
                    new_callable=PropertyMock) as mock_ptrep:
             rep_args = ['rep_arg1', 'rep_arg2']
             mock_ptrep.return_value = rep_args
@@ -250,7 +250,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_args_no_cleanup(self):
         """Test Percona Toolkit OSC args with no-cleanup option."""
-        with patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_rep',
+        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
                    new_callable=PropertyMock) as mock_ptrep:
             rep_args = ['rep_arg1', 'rep_arg2']
             mock_ptrep.return_value = rep_args
@@ -376,11 +376,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         ]
         popen_mock.assert_has_calls(call_list, True)
 
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
            new_callable=PropertyMock)
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args',
            new_callable=PropertyMock)
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.osctool',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.osctool',
            new_callable=PropertyMock)
     def test_run_pt_ost_alter(self, osctool_mock, pt_osc_args_mock, pt_osc_dr_args_mock):
         """Test percona osc run."""
@@ -393,11 +393,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         pt_osc_args_mock.assert_called_once_with()
         pt_osc_dr_args_mock.assert_not_called()
 
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
            new_callable=PropertyMock)
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args',
            new_callable=PropertyMock)
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.osctool',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.osctool',
            new_callable=PropertyMock)
     def test_run_pt_ost_alter_dry_run(self, osctool_mock, pt_osc_args_mock, pt_osc_dr_args_mock):
         """Test percona osc dry run."""
@@ -421,11 +421,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         self.assertEqual(4, self.osc.execute.call_count)
 
     @patch('builtins.print')
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
            new_callable=PropertyMock)
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.pt_osc_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args',
            new_callable=PropertyMock)
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.ddl_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args',
            new_callable=PropertyMock)
     def test_show_conf(self, ddl_args_mock, pt_osc_args_mock, pt_osc_dry_run_args_mock, print_mock):
         """Test the methos used to show the conf."""
@@ -517,7 +517,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         alter_call_list = (call(db, dry_run=True), call(db))
         self.osc.run_pt_ost_alter.assert_has_calls(alter_call_list)
 
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.ddl_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args',
            new_callable=PropertyMock)
     def test_run_ddl_with_ddl_method(self, ddl_args_mock):
         """Test run_ddl with the ddl method."""
@@ -535,7 +535,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         expected_query = "alter table `{}` {}".format(table, alter)
         self.osc.execute.assert_called_once_with(expected_query, ['arg'])
 
-    @patch('wmfmariadbpy.osc_host.OnlineSchemaChanger.ddl_args',
+    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args',
            new_callable=PropertyMock)
     def test_run_ddl_with_ddlonline_method(self, ddl_args_mock):
         """Test run_ddl with the ddlonline method."""

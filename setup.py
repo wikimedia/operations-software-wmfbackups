@@ -4,7 +4,7 @@ from setuptools import setup
 setup(
     name='wmfmariadbpy',
     description='wmfmariadbpy',
-    version='0.1',
+    version='0.2',
     url='https://phabricator.wikimedia.org/diffusion/OSMD/',
     packages=(
         'wmfmariadbpy',
@@ -20,16 +20,17 @@ setup(
         'coverage',
     ],
     entry_points={
-        # TODO: Expand
         'console_scripts': [
-            'db-check-health = wmfmariadbpy.check_health:main',
-            'db-compare = wmfmariadbpy.compare:main',
-            'mysql.py = wmfmariadbpy.mysql:main',
-            'db-osc-host = wmfmariadbpy.osc_host:main',
-            'db-switchover = wmfmariadbpy.switchover:main',
-            'db-replication-tree = wmfmariadbpy.replication_tree:main',
-            'db-move-replica = wmfmariadbpy.move_replica:main',
-            'db-stop-in-sync = wmfmariadbpy.stop_in_sync:main',
+            # cli_admin
+            'db-compare = wmfmariadbpy.cli_admin.compare:main',
+            'db-move-replica = wmfmariadbpy.cli_admin.move_replica:main',
+            'db-osc-host = wmfmariadbpy.cli_admin.osc_host:main',
+            'db-replication-tree = wmfmariadbpy.cli_admin.replication_tree:main',
+            'db-stop-in-sync = wmfmariadbpy.cli_admin.stop_in_sync:main',
+            'db-switchover = wmfmariadbpy.cli_admin.switchover:main',
+            'mysql.py = wmfmariadbpy.cli_admin.mysql:main',
+            # cli_common
+            'db-check-health = wmfmariadbpy.cli_common.check_health:main',
         ],
     },
     test_suite='wmfmariadbpy.test',

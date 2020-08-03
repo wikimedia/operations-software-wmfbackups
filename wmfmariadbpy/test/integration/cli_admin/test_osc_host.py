@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import MagicMock
 
-from wmfmariadbpy.osc_host import OnlineSchemaChanger
+from wmfmariadbpy.cli_admin.osc_host import OnlineSchemaChanger
 from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 

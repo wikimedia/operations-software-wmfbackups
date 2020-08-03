@@ -1,0 +1,8 @@
+wmfmariadbpy/cli_admin/*.py usr/lib/python3/dist-packages/wmfmariadbpy/cli_admin
+usr/bin/db-compare
+usr/bin/mysql.py
+usr/bin/db-osc-host
+usr/bin/db-switchover
+usr/bin/db-replication-tree
+usr/bin/db-move-replica
+usr/bin/db-stop-in-sync
