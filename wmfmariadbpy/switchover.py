@@ -1,6 +1,6 @@
 #!/usr/bin/python3
 
-from CuminExecution import CuminExecution as RemoteExecution
+from wmfmariadbpy.CuminExecution import CuminExecution as RemoteExecution
 from wmfmariadbpy.WMFReplication import WMFReplication
 from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
