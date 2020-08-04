@@ -3,6 +3,7 @@ import csv
 import os
 import glob
 import ipaddress
+import pwd
 # requires python3-pymysql
 import pymysql
 import re
@@ -61,17 +62,12 @@ class WMFMariaDB:
         the user, password, socket and ssl configuration.
         """
         if host == 'localhost':
+            user = pwd.getpwuid(os.getuid()).pw_name
             # connnect to localhost using plugin_auth:
             config = configparser.ConfigParser(interpolation=None,
-                                               allow_no_value=True)
+                                               allow_no_value=True,
+                                               strict=False)
             config.read('/etc/my.cnf')
-            if os.getuid() == 0:
-                user = 'root'
-            else:
-                try:
-                    user = os.getlogin()
-                except OSError:
-                    user = 'root'
             if port == 3306:
                 mysql_sock = config['client']['socket']
             elif port >= 3311 and port <= 3319:
@@ -140,7 +136,7 @@ class WMFMariaDB:
         return self.__last_error
 
     @staticmethod
-    def resolve(host, port):
+    def resolve(host, port=3306):
         """
         Return the full qualified domain name for a database hostname. Normally
         this return the hostname itself, except in the case where the
@@ -169,6 +165,8 @@ class WMFMariaDB:
                 domain = '.esams.wmnet'
             elif re.match('^[a-z]+4[0-9][0-9][0-9]$', host) is not None:
                 domain = '.ulsfo.wmnet'
+            elif re.match('^[a-z]+5[0-9][0-9][0-9]$', host) is not None:
+                domain = '.eqsin.wmnet'
             else:
                 localhost_fqdn = socket.getfqdn()
                 if '.' in localhost_fqdn and len(localhost_fqdn) > 1:
@@ -193,7 +191,7 @@ class WMFMariaDB:
                 host=host, port=port, user=user, password=password,
                 db=database, charset='utf8mb4', unix_socket=socket, ssl=ssl,
                 connect_timeout=connect_timeout, autocommit=True)
-        except (pymysql.err.OperationalError, pymysql.err.InternalError, FileNotFoundError) as e:
+        except (pymysql.err.OperationalError, pymysql.err.InternalError, OSError) as e:
             self.connection = None
             self.__last_error = [e.args[0], e.args[1]]
             if self.debug:

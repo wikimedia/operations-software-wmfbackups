@@ -22,6 +22,7 @@ setup(
     entry_points={
         # TODO: Expand
         'console_scripts': [
+            'db-check-health = wmfmariadbpy.check_health:main',
             'db-compare = wmfmariadbpy.compare:main',
             'mysql.py = wmfmariadbpy.mysql:main',
             'db-osc-host = wmfmariadbpy.osc_host:main',

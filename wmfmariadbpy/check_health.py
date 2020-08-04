@@ -1,14 +1,14 @@
 #!/usr/bin/env python3
 
-from wmfmariadbpy.WMFMariaDB import WMFMariaDB
-
 import argparse
+from datetime import datetime
 import json
 import math
+import subprocess
 import sys
 import time
-from datetime import datetime
-import subprocess
+
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 
 def parse_args():
@@ -26,7 +26,7 @@ def parse_args():
     parser.add_argument('--slave-status', action='store_true', dest='slave_status',
                         help='Enable SHOW SLAVE STATUS execution (blocking).')
     parser.add_argument('--process', action='store_true', dest='process',
-                        help='Check there is a mysqld process (only available for localhost).')
+                        help='Return the list of processes running (only available for localhost).')
     parser.add_argument('--icinga', action='store_true', dest='icinga',
                         help='Output in icinga format rather than just the status.')
     parser.add_argument('--connect-timeout', type=float, default=1.0, dest='connect_timeout',
@@ -37,6 +37,20 @@ def parse_args():
                         help='Only check this replication channel/heartbeat row.')
     parser.add_argument('--primary-dc', dest='primary_dc', default='eqiad',
                         help='Set primary datacenter (by default, eqiad).')
+    parser.add_argument('--check_read_only', dest='read_only', default=None,
+                        help='Check read_only variable matches the given value.')
+    parser.add_argument('--check_event_scheduler', dest='event_scheduler', default=None,
+                        help='Check if the event scheduler is enabled')
+    parser.add_argument('--check_warn_lag', type=float, dest='warn_lag', default=15.0,
+                        help='Lag from which a Warning is returned. By default, 15 seconds.')
+    parser.add_argument('--check_crit_lag', type=float, dest='crit_lag', default=300.0,
+                        help='Lag from which a Critical is returned. By default, 300 seconds.')
+    parser.add_argument('--check_num_processes', type=int, dest='num_processes', default=None,
+                        help='Number of mysqld processes expected. Requires --process')
+    parser.add_argument('--check_warn_connections', type=int, dest='warn_connections', default=1000,
+                        help='Lag from which a Warning is returned. By default, 15 seconds.')
+    parser.add_argument('--check_crit_connections', type=int, dest='crit_connections', default=4995,
+                        help='Lag from which a Critical is returned. By default, 300 seconds.')
     parser.add_argument('--help', '-?', '-I', action='help',
                         help='show this help message and exit')
     return parser
@@ -61,6 +75,7 @@ def get_replication_status(conn, connection_name=None):
     None will be returned if no replication channels are found (or none are found
     with the given name).
     """
+    # FIXME: Support MySQL too
     if connection_name is None:
         result = conn.execute("SHOW ALL SLAVES STATUS")
     else:
@@ -79,14 +94,16 @@ def get_heartbeat_status(conn, shard=None, primary_dc='eqiad', db='heartbeat', t
         return None
     if shard is None:
         query = """
-        SELECT shard, min(greatest(0, TIMESTAMPDIFF(MICROSECOND, ts, UTC_TIMESTAMP(6)) - 500000)) AS lag
+        SELECT shard,
+               min(greatest(0, TIMESTAMPDIFF(MICROSECOND, ts, UTC_TIMESTAMP(6)) - 500000)) AS lag
         FROM {}.{}
         WHERE datacenter = '{}'
         GROUP BY shard
         """.format(db, table, primary_dc)
     else:
         query = """
-        SELECT shard, min(greatest(0, TIMESTAMPDIFF(MICROSECOND, ts, UTC_TIMESTAMP(6)) - 500000)) AS lag
+        SELECT shard,
+               min(greatest(0, TIMESTAMPDIFF(MICROSECOND, ts, UTC_TIMESTAMP(6)) - 500000)) AS lag
         FROM {}.{}
         WHERE datacenter = '{}'
         AND shard = '{}'
@@ -124,18 +141,22 @@ def get_status(options):
 
     time_before_connect = time.time()
     mysql = WMFMariaDB(host=options.host, port=options.port,
-                       connect_timeout=options.connect_timeout)
+                       connect_timeout=options.connect_timeout,
+                       debug=options.debug)
     time_after_connect = time.time()
 
     wait_timeout = math.ceil(options.query_timeout)
-    mysql.execute("SET SESSION innodb_lock_wait_timeout = {0}, SESSION lock_wait_timeout = {0}, SESSION wait_timeout = {0}".format(wait_timeout))
+    result = mysql.execute("""SET SESSION innodb_lock_wait_timeout = {0},
+                                  SESSION lock_wait_timeout = {0},
+                                  SESSION wait_timeout = {0}""".format(wait_timeout))
 
-    if mysql.connection is None:
+    if mysql.connection is None or result is None:
         status['connection'] = None
     else:
         status['connection'] = 'ok'
         version = get_var(mysql, 'version')
         read_only = get_var(mysql, 'read_only')
+        event_scheduler = get_var(mysql, 'event_scheduler')
         uptime = get_var(mysql, 'Uptime', type='STATUS')
         ssl = get_var(mysql, 'Ssl_cipher', type='STATUS')
         ssl_expiration = get_var(mysql, 'Ssl_server_not_after', type='STATUS')
@@ -156,7 +177,8 @@ def get_status(options):
             status['version'] = version
         if read_only is not None:
             status['read_only'] = read_only == 'ON'
-
+        if event_scheduler is not None:
+            status['event_scheduler'] = event_scheduler == 'ON'
         if uptime is not None:
             status['uptime'] = int(uptime)
 
@@ -167,7 +189,8 @@ def get_status(options):
             if ssl_expiration is not None and ssl_expiration != '':
                 try:
                     # We assume we will be always using GMT
-                    status['ssl_expiration'] = time.mktime(datetime.strptime(ssl_expiration, '%b %d %H:%M:%S %Y %Z').timetuple())
+                    status['ssl_expiration'] = time.mktime(datetime.strptime(
+                            ssl_expiration, '%b %d %H:%M:%S %Y %Z').timetuple())
                 except ValueError:
                     status['ssl_expiration'] = None
 
@@ -189,9 +212,11 @@ def get_status(options):
                 replication_status['Slave_IO_Running'] = channel['Slave_IO_Running']
                 replication_status['Slave_SQL_Running'] = channel['Slave_SQL_Running']
                 replication_status['Seconds_Behind_Master'] = channel['Seconds_Behind_Master']
-                replication_status['Last_IO_Error'] = channel['Last_IO_Error'] if channel['Last_IO_Error'] != '' else None
+                io_error = channel['Last_IO_Error']
+                replication_status['Last_IO_Error'] = io_error if io_error != '' else None
                 # FIXME may contain private data, needs filtering:
-                replication_status['Last_SQL_Error'] = channel['Last_SQL_Error'] if channel['Last_SQL_Error'] != '' else None
+                sql_error = channel['Last_SQL_Error']
+                replication_status['Last_SQL_Error'] = sql_error if sql_error != '' else None
                 status['replication'][channel['Connection_name']] = replication_status
 
         status['connection_latency'] = time_after_connect - time_before_connect
@@ -199,19 +224,130 @@ def get_status(options):
     return status
 
 
-def check_health(status, options):
-    return None
+def icinga_check(options):
+    OK = 0
+    WARNING = 1
+    CRITICAL = 2
+    UNKNOWN = 3
+
+    status = get_status(options)
+    if status['connection'] is None:
+        print("Could not connect to {}:{}".format(options.host, options.port))
+        sys.exit(CRITICAL)
+
+    time.sleep(1)
+    second_status = get_status(options)
+
+    msg = ''
+    unknown_msg = []
+    warn_msg = []
+    crit_msg = []
+    ok_msg = []
+
+    # Version and uptime for now cannot generate alerts
+    ok_msg.append('Version {}'.format(status['version']))
+    ok_msg.append('Uptime {}s'.format(status['uptime']))
+
+    # # check processes
+    # if options.num_processes is not None:
+    #     if 'mysqld_processes' not in status:
+    #         unknown_msg.append("Process monitoring was requested, but it wasn't configured")
+    #     else:
+    #         num_processes = len(status['mysqld_processes'])
+    #         if num_processes != options.num_processes:
+    #             crit_msg.append('{} mysqld process(es) running, expected {}'.format(
+    #                     num_processes, options.num_processes))
+    #         else:
+    #             ok_msg.append('{} mysqld process(es)'.format(len(status['mysqld_processes'])))
+    # elif 'mysqld_processes' in status:
+    #     ok_msg.append('{} mysqld process(es)'.format(len(status['mysqld_processes'])))
+
+    # check read only is correct
+    if options.read_only is not None:
+        expected_read_only = options.read_only.lower() in ['true', '1', 'on', 'yes', 't', 'y']
+        if status['read_only'] != expected_read_only:
+            crit_msg.append('read_only: "{}", expected "{}"'.format(status['read_only'],
+                            expected_read_only))
+        else:
+            ok_msg.append('read_only: {}'.format(status['read_only']))
+    else:
+        ok_msg.append('read_only: {}'.format(status['read_only']))
+    # check event_scheduler is enabled
+    if options.event_scheduler is not None:
+        expected_event_scheduler = options.event_scheduler.lower() in ['true', '1', 'on', 'yes']
+        if status['event_scheduler'] != expected_event_scheduler:
+            crit_msg.append('event_scheduler: "{}", expected "{}"'.format(status['event_scheduler'],
+                            expected_event_scheduler))
+        else:
+            ok_msg.append('event_scheduler: {}'.format(status['event_scheduler']))
+    else:
+        ok_msg.append('event_scheduler: {}'.format(status['event_scheduler']))
+
+    # # check lag
+    # if 'heartbeat' in status:
+    #     for connection_name, lag in status['heartbeat'].items():
+    #         if options.crit_lag and lag >= options.crit_lag:
+    #             crit_msg.append('{} lag is {:.2f}s'.format(connection_name, lag))
+    #         elif options.crit_lag and lag >= options.warn_lag:
+    #             warn_msg.append('{} lag is {:.2f}s'.format(connection_name, lag))
+    #         else:
+    #             ok_msg.append('{} lag: {:.2f}s'.format(connection_name, lag))
+    #
+    # # check crit_connections
+    # if (options.crit_connections is not None and
+    #         status['threads_connected'] >= options.crit_connections):
+    #     crit_msg.append('{} client(s)'.format(status['threads_connected']))
+    # elif (options.warn_connections is not None and
+    #         status['threads_connected'] >= options.warn_connections):
+    #     warn_msg.append('{} client(s)'.format(status['threads_connected']))
+    # else:
+    #     ok_msg.append('{} client(s)'.format(status['threads_connected']))
+
+    # QPS and latencies (cannot yet generate alarms)
+    # Note the monitoring will create ~10 QPS more than if monitoring wasn't active
+    qps = ((second_status['total_queries'] - status['total_queries'])
+           / (second_status['datetime'] - status['datetime']))
+    ok_msg.append('{:.2f} QPS'.format(qps))
+
+    ok_msg.append('connection latency: {:.6f}s'.format(status['connection_latency']))
+    if 'query_latency' in status:
+        ok_msg.append('query latency: {:.6f}s'.format(status['query_latency']))
+
+    exit_code = None
+    if len(crit_msg) > 0:
+        msg = msg + 'CRIT: ' + ', '.join(crit_msg) + '; '
+        if exit_code is None:
+            exit_code = CRITICAL
+
+    if len(warn_msg) > 0:
+        msg = msg + 'WARN: ' + ', '.join(warn_msg) + '; '
+        if exit_code is None:
+            exit_code = WARNING
+
+    if len(unknown_msg) > 0:
+        msg = msg + 'UNKNOWN: ' + ', '.join(unknown_msg) + '; '
+        if exit_code is None:
+            exit_code = UNKNOWN
+
+    if len(ok_msg) > 0:
+        if exit_code is None:
+            msg = msg + ', '.join(ok_msg)
+            exit_code = OK
+        else:
+            msg = msg + 'OK: ' + ', '.join(ok_msg)
+
+    print(msg)
+    sys.exit(exit_code)
 
 
 def main():
     parser = parse_args()
     options = parser.parse_args()
 
-    status = get_status(options)
     if options.icinga:
-        health_check = check_health(status, options)
-        print(json.dumps(health_check))
+        icinga_check(options)
     else:
+        status = get_status(options)
         print(json.dumps(status))
 
 
