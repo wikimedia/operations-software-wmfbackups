@@ -1,9 +1,10 @@
 from multiprocessing import Pipe, Process
+import os
 
 import cumin
 from cumin import query, transport, transports
 
-from wmfmariadbpy.RemoteExecution import CommandReturn, RemoteExecution
+from wmfmariadbpy.RemoteExecution.RemoteExecution import CommandReturn, RemoteExecution
 
 
 # TODO: Refactor with the one on ParamikoExecution or find a better approach
@@ -18,8 +19,9 @@ class CuminExecution(RemoteExecution):
     RemoteExecution implementation using Cumin
     """
 
-    def __init__(self):
+    def __init__(self, options={}):
         self._config = None
+        self.options = options
 
     @property
     def config(self):
@@ -42,7 +44,23 @@ class CuminExecution(RemoteExecution):
         worker = transport.Transport.new(self.config, target)
         worker.commands = [self.format_command(command)]
         worker.handler = 'sync'
-        return_code = worker.execute()
+
+        # If verbose is false, suppress stdout and stderr of Cumin.
+        if self.options.get('verbose', False):
+            return_code = worker.execute()
+        else:
+            # Temporary workaround until Cumin has full support to suppress output (T212783).
+            stdout = transports.clustershell.sys.stdout
+            stderr = transports.clustershell.sys.stderr
+            try:
+                with open(os.devnull, 'w') as discard_output:
+                    transports.clustershell.sys.stdout = discard_output
+                    transports.clustershell.sys.stderr = discard_output
+                    return_code = worker.execute()
+            finally:
+                transports.clustershell.sys.stdout = stdout
+                transports.clustershell.sys.stderr = stderr
+
         for nodes, output in worker.get_results():
             if host in nodes:
                 result = str(bytes(output), 'utf-8')

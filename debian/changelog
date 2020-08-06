@@ -1,3 +1,10 @@
+wmfmariadbpy (0.4) buster-wikimedia; urgency=medium
+
+  * Update remote execution from transferpy, split into separate library
+    package.
+
+ -- Stephen Shirley <sshirley@wikimedia.org>  Wed, 12 Aug 2020 16:07:54 +0200
+
 wmfmariadbpy (0.3) buster-wikimedia; urgency=medium
 
   * Fix db-switchover to work with mariadb 10.4 hosts (T260127)

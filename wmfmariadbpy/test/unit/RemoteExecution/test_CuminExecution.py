@@ -2,7 +2,7 @@
 import unittest
 from unittest.mock import patch, MagicMock
 
-from wmfmariadbpy.CuminExecution import CuminExecution
+from wmfmariadbpy.RemoteExecution.CuminExecution import CuminExecution
 
 
 class TestCuminExecution(unittest.TestCase):
@@ -11,7 +11,7 @@ class TestCuminExecution(unittest.TestCase):
     def setUp(self):
         self.executor = CuminExecution()
 
-    @patch('wmfmariadbpy.CuminExecution.cumin.Config')
+    @patch('wmfmariadbpy.RemoteExecution.CuminExecution.cumin.Config')
     def test_config(self, config_mock):
         config_mock.return_value = MagicMock()
 
@@ -34,7 +34,7 @@ class TestCuminExecution(unittest.TestCase):
 
         self.assertEqual(' '.join(orig_cmd), formatted_command)
 
-    @patch('wmfmariadbpy.CuminExecution.cumin.Config',
+    @patch('wmfmariadbpy.RemoteExecution.CuminExecution.cumin.Config',
            return_value={'transport': 'clustershell', 'default_backend': 'knownhosts'})
     def test_run_invalid_host(self, config_mock):
         host = 'wrong_host.eqiad.wmnet'

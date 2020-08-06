@@ -14,6 +14,14 @@ Description: Libraries for interacting with WMF's mariadb deployments
  wmfmariadbpy is a set of Python 3 libraries for interacting with and
  maintaining mariadb deployments.
 
+Package: python3-wmfmariadbpy-remote
+Architecture: any
+Depends: ${python3:Depends}, ${misc:Depends}, cumin
+Description: Remote-execution libraries for automation
+ Supported backends:
+   - Local
+   - Cumin
+
 Package: wmfmariadbpy-common
 Architecture: any
 Depends: ${python3:Depends}, ${misc:Depends}, python3-wmfmariadbpy (= ${binary:Version})
@@ -22,14 +30,12 @@ Description: Utilities for maintaining WMF's mariadb deployments
 
 Package: wmfmariadbpy-admin
 Architecture: any
-Depends: ${python3:Depends}, ${misc:Depends}, python3-wmfmariadbpy (= ${binary:Version})
-Breaks: wmfmariadbpy (<< 0.2)
-Replaces: wmfmariadbpy (<< 0.2)
+Depends:
+ ${python3:Depends},
+ ${misc:Depends},
+ python3-wmfmariadbpy (= ${binary:Version}),
+ python3-wmfmariadbpy-remote (= ${binary:Version}),
+Breaks: wmfmariadbpy (<< 0.3)
+Replaces: wmfmariadbpy (<< 0.3)
 Description: Utilities for maintaining WMF's mariadb deployments
  This package contains the utilities suitable for admin hosts.
-
-Package: wmfmariadbpy
-Architecture: any
-Depends: ${misc:Depends}, wmfmariadbpy-common (= ${binary:Version}), wmfmariadbpy-admin (= ${binary:Version})
-Description: Utilities for maintaining WMF's mariadb deployments (metapackage)
- This package will pull in both admin and common utilities.

@@ -7,18 +7,21 @@ with open("README.md", "r") as fh:
 setup(
     name='wmfmariadbpy',
     description='wmfmariadbpy',
-    version='0.3',
+    version='0.4',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url='https://phabricator.wikimedia.org/diffusion/OSMD/',
     packages=(
         'wmfmariadbpy',
+        'wmfmariadbpy.RemoteExecution',
     ),
     install_requires=[
         'pymysql>=0.9.3',
         'tabulate>=0.8.2',
-        'cumin'
     ],
+    extras_require={
+        "cumin": ["cumin"],
+    },
     entry_points={
         'console_scripts': [
             # cli_admin

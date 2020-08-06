@@ -12,6 +12,7 @@
 /debian/debhelper-build-stamp
 /debian/files
 /debian/python3-wmfmariadbpy/
+/debian/python3-wmfmariadbpy-remote/
 /debian/tmp/
 /debian/wmfmariadbpy-admin/
 /debian/wmfmariadbpy-common/
