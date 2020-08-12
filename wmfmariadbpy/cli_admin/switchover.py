@@ -526,8 +526,9 @@ def handle_new_master_semisync_replication(slave):
     result = slave.execute("SET GLOBAL rpl_semi_sync_slave_enabled = 0")
     if not result['success']:
         print('[WARNING] Semisync slave could not be disabled on the new master')
-    slave.execute("UNINSTALL PLUGIN rpl_semi_sync_slave")
-    slave.execute("INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so'")
+    if slave.get_version() < (10, 3, 0):
+        slave.execute("UNINSTALL PLUGIN rpl_semi_sync_slave")
+        slave.execute("INSTALL PLUGIN rpl_semi_sync_master SONAME 'semisync_master.so'")
     result = slave.execute('SET GLOBAL rpl_semi_sync_master_enabled = 1')
     if not result['success']:
         print('[WARNING] Semisync could not be enabled on the new master')
@@ -538,8 +539,9 @@ def handle_old_master_semisync_replication(master):
     result = master.execute('SET GLOBAL rpl_semi_sync_master_enabled = 0')
     if not result['success']:
         print('[WARNING] Semisync could not be disabled on the old master')
-    master.execute("UNINSTALL PLUGIN rpl_semi_sync_master")
-    master.execute("INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so'")
+    if master.get_version() < (10, 3, 0):
+        master.execute("UNINSTALL PLUGIN rpl_semi_sync_master")
+        master.execute("INSTALL PLUGIN rpl_semi_sync_slave SONAME 'semisync_slave.so'")
     result = master.execute("SET GLOBAL rpl_semi_sync_slave_enabled = 1")
     if not result['success']:
         print('[WARNING] Semisync slave could not be enabled on the old master')

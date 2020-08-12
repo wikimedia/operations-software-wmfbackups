@@ -307,6 +307,16 @@ class WMFMariaDB:
                 "database": database, "success": True, "numrows": numrows,
                 "rows": rows, "fields": fields}
 
+    def get_version(self):
+        """
+        Returns the version of the db server in the form of a (major, minor, patch) tuple.
+        """
+        result = self.execute("SELECT @@VERSION")
+        if not result['success']:
+            return ()
+        ver_nums = result['rows'][0][0].split("-")[0]
+        return tuple(map(int, ver_nums.split(".")))
+
     @staticmethod
     def get_wikis(shard=None, wiki=None):
         """
