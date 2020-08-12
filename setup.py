@@ -4,7 +4,7 @@ from setuptools import setup
 setup(
     name='wmfmariadbpy',
     description='wmfmariadbpy',
-    version='0.2',
+    version='0.3',
     url='https://phabricator.wikimedia.org/diffusion/OSMD/',
     packages=(
         'wmfmariadbpy',
