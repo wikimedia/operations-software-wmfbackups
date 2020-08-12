@@ -1,4 +1,10 @@
-wmfmariadbpy (0.2) UNRELEASED; urgency=medium
+wmfmariadbpy (0.3) buster-wikimedia; urgency=medium
+
+  * Fix db-switchover to work with mariadb 10.4 hosts (T260127)
+
+ -- Stephen Shirley <sshirley@wikimedia.org>  Wed, 12 Aug 2020 15:50:30 +0200
+
+wmfmariadbpy (0.2) buster-wikimedia; urgency=medium
 
   * Split into multiple utilities packages.
 
