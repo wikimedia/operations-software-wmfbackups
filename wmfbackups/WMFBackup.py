@@ -1,8 +1,11 @@
 from wmfbackups.BackupStatistics import DatabaseBackupStatistics, DisabledBackupStatistics
+from wmfbackups.NullBackup import NullBackup
+from wmfbackups.MariaBackup import MariaBackup
+from wmfbackups.MyDumperBackup import MyDumperBackup
+
 import re
 import datetime
 import logging
-from multiprocessing.pool import ThreadPool
 import os
 import subprocess
 import shutil
@@ -15,260 +18,9 @@ ARCHIVE_BACKUP_DIR = 'archive'
 DATE_FORMAT = '%Y-%m-%d--%H-%M-%S'
 DEFAULT_BACKUP_TYPE = 'dump'
 DEFAULT_BACKUP_THREADS = 18
-DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 3306
 DEFAULT_RETENTION_DAYS = 18
-
-
-class NullBackup:
-
-    config = dict()
-
-    def __init__(self, config, backup):
-        """
-        Initialize commands
-        """
-        self.config = config
-        self.backup = backup
-        self.logger = backup.logger
-
-    def get_backup_cmd(self, backup_dir):
-        """
-        Return list with binary and options to execute to generate a new backup at backup_dir
-        """
-        return '/bin/true'
-
-    def get_prepare_cmd(self, backup_dir):
-        """
-        Return list with binary and options to execute to prepare an existing backup. Return
-        none if prepare is not necessary (nothing will be executed in that case).
-        """
-        return ''
-
-    def errors_on_output(self, stdout, stderr):
-        """
-        Returns true if there were errors on the output of the backup command. As parameters,
-        a string containing the standard output and standard error ouput of the backup command.
-        Return False if there were not detected errors.
-        """
-        return False
-
-    def errors_on_log(self, log_file):
-        """
-        Returns true if there were errors on the log of the backup command. As a parameter,
-        a string containing the full path of the log file.
-        Return False if there were not detected errors.
-        """
-        return False
-
-    def errors_on_metadata(self, backup_dir):
-        """
-        Checks the metadata file of a backup, and sees if it has the right format and content.
-        As a parameter, a string containing the full path of the metadata file.
-        Returns False if tehre were no detected errors.
-        """
-        return False
-
-    def errors_on_prepare(self, stdout, stderr):
-        return False
-
-
-class MariaBackup(NullBackup):
-
-    xtrabackup_path = 'xtrabackup'
-    xtrabackup_prepare_memory = '20G'
-
-    def get_backup_cmd(self, backup_dir):
-        """
-        Given a config, returns a command line for mydumper, the name
-        of the expected snapshot, and the log path.
-        """
-        cmd = [self.xtrabackup_path, '--backup']
-
-        output_dir = os.path.join(backup_dir, self.backup.dir_name)
-        cmd.extend(['--target-dir', output_dir])
-        port = int(self.config.get('port', DEFAULT_PORT))
-        if port == 3306:
-            data_dir = '/srv/sqldata'
-            socket_dir = '/run/mysqld/mysqld.sock'
-        elif port >= 3311 and port <= 3319:
-            data_dir = '/srv/sqldata.s' + str(port)[-1:]
-            socket_dir = '/run/mysqld/mysqld.s' + str(port)[-1:] + '.sock'
-        elif port == 3320:
-            data_dir = '/srv/sqldata.x1'
-            socket_dir = '/run/mysqld/mysqld.x1.sock'
-        elif port == 3350:
-            data_dir = '/srv/sqldata.staging'
-            socket_dir = '/run/mysqld/mysqld.staging.sock'
-        elif port == 3351:
-            data_dir = '/srv/sqldata.matomo'
-            socket_dir = '/run/mysqld/mysqld.matomo.sock'
-        elif port == 3352:
-            data_dir = '/srv/sqldata.analytics_meta'
-            socket_dir = '/run/mysqld/mysqld.analytics_meta.sock'
-        else:
-            data_dir = '/srv/sqldata.m' + str(port)[-1:]
-            socket_dir = '/run/mysqld/mysqld.m' + str(port)[-1:] + '.sock'
-        cmd.extend(['--datadir', data_dir])
-        cmd.extend(['--socket', socket_dir])
-        if 'regex' in self.config and self.config['regex'] is not None:
-            cmd.extend(['--tables', self.config['regex']])
-
-        if 'user' in self.config:
-            cmd.extend(['--user', self.config['user']])
-        if 'password' in self.config:
-            cmd.extend(['--password', self.config['password']])
-
-        return cmd
-
-    def errors_on_metadata(self, backup_dir):
-        metadata_file = os.path.join(backup_dir, self.backup.dir_name, 'xtrabackup_info')
-        try:
-            with open(metadata_file, 'r', errors='ignore') as metadata_file:
-                metadata = metadata_file.read()
-        except OSError:
-            return False
-        if 'end_time = ' not in metadata:
-            return True
-        return False
-
-    def _get_xtraback_prepare_cmd(self, backup_dir):
-        """
-        Returns the command needed to run the backup prepare
-        (REDO and UNDO actions to make the backup consistent)
-        """
-        path = os.path.join(backup_dir, self.backup.dir_name)
-        cmd = [self.xtrabackup_path, '--prepare']
-        cmd.extend(['--target-dir', path])
-        # TODO: Make the amount of memory configurable
-        # WARNING: apparently, --innodb-buffer-pool-size fails sometimes
-        cmd.extend(['--use-memory', self.xtrabackup_prepare_memory])
-
-        return cmd
-
-    def errors_on_output(self, stdout, stderr):
-        errors = stderr.decode("utf-8")
-        if 'completed OK!' not in errors:
-            sys.stderr.write(errors)
-            return True
-        return False
-
-    def errors_on_log(self, log_file):
-        return False
-
-    def get_prepare_cmd(self, backup_dir):
-        """
-        Once an xtrabackup backup has completed, run prepare so it is ready to be copied back
-        """
-        cmd = self._get_xtraback_prepare_cmd(backup_dir)
-        return cmd
-
-    def errors_on_prepare(self, stdout, stderr):
-        return self.errors_on_output(stdout, stderr)
-
-    def archive_databases(self, source, threads):
-        # FIXME: Allow database archiving for xtrabackup
-        pass
-
-
-class MyDumperBackup(NullBackup):
-
-    rows = 20000000
-
-    def get_backup_cmd(self, backup_dir):
-        """
-        Given a config, returns a command line for mydumper, the name
-        of the expected dump, and the log path.
-        """
-        # FIXME: even if there is not privilege escalation (everybody can run
-        # mydumper and parameters are gotten from a localhost file),
-        # check parameters better to avoid unintended effects
-        cmd = ['/usr/bin/mydumper']
-        cmd.extend(['--compress', '--events', '--triggers', '--routines'])
-
-        cmd.extend(['--logfile', self.backup.log_file])
-        output_dir = os.path.join(backup_dir, self.backup.dir_name)
-        cmd.extend(['--outputdir', output_dir])
-
-        rows = int(self.backup.config.get('rows', self.rows))
-        cmd.extend(['--rows', str(rows)])
-        cmd.extend(['--threads', str(self.backup.config['threads'])])
-        host = self.backup.config.get('host', DEFAULT_HOST)
-        cmd.extend(['--host', host])
-        port = int(self.backup.config.get('port', DEFAULT_PORT))
-        cmd.extend(['--port', str(port)])
-        if 'regex' in self.backup.config and self.backup.config['regex'] is not None:
-            cmd.extend(['--regex', self.backup.config['regex']])
-
-        if 'user' in self.backup.config:
-            cmd.extend(['--user', self.backup.config['user']])
-        if 'password' in self.backup.config:
-            cmd.extend(['--password', self.backup.config['password']])
-
-        return cmd
-
-    def get_prepare_cmd(self, backup_dir):
-        return ''
-
-    def errors_on_metadata(self, backup_dir):
-        metadata_file = os.path.join(backup_dir, self.backup.dir_name, 'metadata')
-        try:
-            with open(metadata_file, 'r', errors='ignore') as metadata_file:
-                metadata = metadata_file.read()
-        except OSError:
-            return True
-        if 'Finished dump at: ' not in metadata:
-            return True
-        return False
-
-    def archive_databases(self, source, threads):
-        """
-        To avoid too many files per backup output, archive each database file in
-        separate tar files for given directory "source". The threads
-        parameter allows to control the concurrency (number of threads executing
-        tar in parallel).
-        """
-
-        # TODO: Ignore already archived databases, so a second run is idempotent
-        files = sorted(os.listdir(source))
-
-        schema_files = list()
-        name = None
-        pool = ThreadPool(threads)
-        for item in files:
-            if item.endswith('-schema-create.sql.gz') or item == 'metadata':
-                if schema_files:
-                    pool.apply_async(self.backup.tar_and_remove, (source, name, schema_files))
-                    schema_files = list()
-                if item != 'metadata':
-                    schema_files.append(item)
-                    name = item.replace('-schema-create.sql.gz', '.gz.tar')
-            else:
-                schema_files.append(item)
-        if schema_files:
-            pool.apply_async(self.backup.tar_and_remove, (source, name, schema_files))
-
-        # TODO: Missing error handling
-
-        pool.close()
-        pool.join()
-
-    def errors_on_output(self, stdout, stderr):
-        errors = stderr.decode("utf-8")
-        if ' CRITICAL ' in errors:
-            return 3
-
-    def errors_on_log(self, log_file):
-        try:
-            with open(log_file, 'r') as output:
-                log = output.read()
-        except OSError:
-            return True
-        if ' [ERROR] ' in log:
-            return True
-
-    def errors_on_prepare(self, stdout, stderr):
-        return False
+SUPPORTED_BACKUP_TYPES = ['dump', 'snapshot', 'null']
 
 
 class WMFBackup:
@@ -575,7 +327,7 @@ class WMFBackup:
         self.logger = logging.getLogger(name)
         if 'type' not in config:
             self.config['type'] = DEFAULT_BACKUP_TYPE
-        elif config['type'] not in ['dump', 'snapshot']:
+        elif config['type'] not in SUPPORTED_BACKUP_TYPES:
             self.logger.error('Unknown dump type {}'.format(config['type']))
             sys.exit(-1)
         if 'retention' not in config:
