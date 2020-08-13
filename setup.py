@@ -11,13 +11,8 @@ setup(
     ),
     install_requires=[
         'pymysql>=0.9.3',
-        'tabulate',
+        'tabulate>=0.8.2',
         'cumin'
-    ],
-    tests_require=[
-        'flake8',
-        'nose',
-        'coverage',
     ],
     entry_points={
         'console_scripts': [

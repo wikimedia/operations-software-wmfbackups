@@ -1,3 +1,0 @@
-pymysql == 0.8.0
-tabulate == 0.8.2
-cumin == 3.0.1
