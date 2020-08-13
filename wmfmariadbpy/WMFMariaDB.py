@@ -56,6 +56,28 @@ class WMFMariaDB:
             ((self.socket is None and other_instance.socket is None) or self.socket == other_instance.socket)
 
     @staticmethod
+    def get_socket_from_port(port):
+        """
+        Translates port number to expected socket location
+        """
+        if port == 3306:
+            socket = '/run/mysqld/mysqld.sock'
+        elif port >= 3311 and port <= 3319:
+            socket = '/run/mysqld/mysqld.s' + str(port)[-1:] + '.sock'
+        elif port == 3320:
+            socket = '/run/mysqld/mysqld.x1.sock'
+        elif port == 3350:
+            socket = '/run/mysqld/mysqld.staging.sock'
+        elif port == 3351:
+            socket = '/run/mysqld/mysqld.matomo.sock'
+        elif port == 3352:
+            socket = '/run/mysqld/mysqld.analytics_meta.sock'
+        else:
+            socket = '/run/mysqld/mysqld.m' + str(port)[-1:] + '.sock'
+
+        return socket
+
+    @staticmethod
     def get_credentials(host, port, database):
         """
         Given a database instance, return the authentication method, including
@@ -68,20 +90,7 @@ class WMFMariaDB:
                                                allow_no_value=True,
                                                strict=False)
             config.read('/etc/my.cnf')
-            if port == 3306:
-                mysql_sock = config['client']['socket']
-            elif port >= 3311 and port <= 3319:
-                mysql_sock = '/run/mysqld/mysqld.s' + str(port)[-1:] + '.sock'
-            elif port == 3320:
-                mysql_sock = '/run/mysqld/mysqld.x1.sock'
-            elif port == 3350:
-                mysql_sock = '/run/mysqld/mysqld.staging.sock'
-            elif port == 3351:
-                mysql_sock = '/run/mysqld/mysqld.matomo.sock'
-            elif port == 3352:
-                mysql_sock = '/run/mysqld/mysqld.analytics_meta.sock'
-            else:
-                mysql_sock = '/run/mysqld/mysqld.m' + str(port)[-1:] + '.sock'
+            mysql_sock = WMFMariaDB.get_socket_from_port(port)
             ssl = None
             password = None
             charset = None
