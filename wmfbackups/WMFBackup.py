@@ -1,4 +1,4 @@
-from wmfmariadbpy.BackupStatistics import DatabaseBackupStatistics, DisabledBackupStatistics
+from wmfbackups.BackupStatistics import DatabaseBackupStatistics, DisabledBackupStatistics
 import re
 import datetime
 import logging

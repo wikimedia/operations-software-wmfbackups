@@ -7,7 +7,7 @@
 #               tar at /bin/tar
 #               TLS certificate installed at /etc/ssl/certs/Puppet_Internal_CA.pem (if data
 #               gathering metrics are used)
-from wmfmariadbpy.WMFBackup import WMFBackup
+from wmfbackups.WMFBackup import WMFBackup
 
 import argparse
 import logging
