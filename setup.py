@@ -1,10 +1,15 @@
 """wmfmariadbpy."""
 from setuptools import setup
 
+with open("README.md", "r") as fh:
+    long_description = fh.read()
+
 setup(
     name='wmfmariadbpy',
     description='wmfmariadbpy',
     version='0.3',
+    long_description=long_description,
+    long_description_content_type="text/markdown",
     url='https://phabricator.wikimedia.org/diffusion/OSMD/',
     packages=(
         'wmfmariadbpy',
