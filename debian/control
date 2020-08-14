@@ -36,6 +36,6 @@ Depends:
  python3-wmfmariadbpy (= ${binary:Version}),
  python3-wmfmariadbpy-remote (= ${binary:Version}),
 Breaks: wmfmariadbpy (<< 0.3)
-Replaces: wmfmariadbpy (<< 0.3)
+Replaces: wmfmariadbpy (<< 0.4)
 Description: Utilities for maintaining WMF's mariadb deployments
  This package contains the utilities suitable for admin hosts.
