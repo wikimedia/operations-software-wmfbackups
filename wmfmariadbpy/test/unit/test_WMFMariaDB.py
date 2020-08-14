@@ -57,6 +57,18 @@ class TestWMFMariaDB(unittest.TestCase):
             for case in test_cases:
                 self.assertEqual(WMFMariaDB.get_socket_from_port(case[0]), case[1])
 
+    def test_resolve(self):
+        test_cases = [
+            ("localhost", ("localhost", 3306)),
+            ("localhost:3311", ("localhost", 3311)),
+            ("db1001", ("db1001.eqiad.wmnet", 3306)),
+            ("db5999:3321", ("db5999.eqsin.wmnet", 3321)),
+            ("db2001.codfw.wmnet", ("db2001.codfw.wmnet", 3306)),
+            ("dbmonitor1001.wikimedia.org", ("dbmonitor1001.wikimedia.org", 3306)),
+        ]
+        for test in test_cases:
+            self.assertEqual(WMFMariaDB.resolve(test[0]), test[1])
+
 
 if __name__ == "__main__":
     unittest.main()
