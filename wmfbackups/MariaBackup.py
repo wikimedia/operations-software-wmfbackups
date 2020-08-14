@@ -8,6 +8,7 @@
 # command locally
 
 from wmfbackups.NullBackup import NullBackup
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 import os
 import sys
 
@@ -29,29 +30,10 @@ class MariaBackup(NullBackup):
         output_dir = os.path.join(backup_dir, self.backup.dir_name)
         cmd.extend(['--target-dir', output_dir])
         port = int(self.config.get('port', DEFAULT_PORT))
-        if port == 3306:
-            data_dir = '/srv/sqldata'
-            socket_dir = '/run/mysqld/mysqld.sock'
-        elif port >= 3311 and port <= 3319:
-            data_dir = '/srv/sqldata.s' + str(port)[-1:]
-            socket_dir = '/run/mysqld/mysqld.s' + str(port)[-1:] + '.sock'
-        elif port == 3320:
-            data_dir = '/srv/sqldata.x1'
-            socket_dir = '/run/mysqld/mysqld.x1.sock'
-        elif port == 3350:
-            data_dir = '/srv/sqldata.staging'
-            socket_dir = '/run/mysqld/mysqld.staging.sock'
-        elif port == 3351:
-            data_dir = '/srv/sqldata.matomo'
-            socket_dir = '/run/mysqld/mysqld.matomo.sock'
-        elif port == 3352:
-            data_dir = '/srv/sqldata.analytics_meta'
-            socket_dir = '/run/mysqld/mysqld.analytics_meta.sock'
-        else:
-            data_dir = '/srv/sqldata.m' + str(port)[-1:]
-            socket_dir = '/run/mysqld/mysqld.m' + str(port)[-1:] + '.sock'
-        cmd.extend(['--datadir', data_dir])
-        cmd.extend(['--socket', socket_dir])
+        datadir = WMFMariaDB.get_datadir_from_port(port)
+        socket = WMFMariaDB.get_socket_from_port(port)
+        cmd.extend(['--datadir', datadir])
+        cmd.extend(['--socket', socket])
         if 'regex' in self.config and self.config['regex'] is not None:
             cmd.extend(['--tables', self.config['regex']])
 

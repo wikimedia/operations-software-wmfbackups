@@ -10,6 +10,8 @@ import pymysql
 import re
 import socket
 
+SECTION_PORT_LIST_FILE = "/etc/mysql/section_ports.csv"
+
 
 class WMFMariaDB:
     """
@@ -65,26 +67,60 @@ class WMFMariaDB:
         )
 
     @staticmethod
+    def read_section_ports_list(path=SECTION_PORT_LIST_FILE):
+        """
+        Reads the list of section and port assignment file and returns two dictionaries,
+        one for the section -> port assignment, and the other with the port -> section
+        assignment.
+        """
+        sections = {}
+        ports = {}
+        with open(path, mode="r", newline="") as section_port_list:
+            reader = csv.reader(section_port_list)
+            for row in reader:
+                ports[row[0]] = int(row[1])
+                sections[int(row[1])] = row[0]
+        return sections, ports
+
+    @staticmethod
+    def get_port_from_section(section):
+        """
+        Returns the port integer corresponding to the given section name. If the section
+        is None, or an unrecognized one, return the default one (3306).
+        """
+        sections, ports = WMFMariaDB.read_section_ports_list()
+        return ports.get(section, 3306)
+
+    @staticmethod
+    def get_section_from_port(port):
+        """
+        Returns the section name corresponding to the given port. If the port is the
+        default one (3306) or an unknown one, return a null value.
+        """
+        sections, ports = WMFMariaDB.read_section_ports_list()
+        return sections.get(port, None)
+
+    @staticmethod
+    def get_datadir_from_port(port):
+        """
+        Translates port number to expected datadir path
+        """
+        section = WMFMariaDB.get_section_from_port(port)
+        if section is None:
+            return "/srv/sqldata"
+        else:
+            return "/srv/sqldata." + section
+
+    @staticmethod
     def get_socket_from_port(port):
         """
         Translates port number to expected socket location
         """
-        if port == 3306:
-            socket = "/run/mysqld/mysqld.sock"
-        elif port >= 3311 and port <= 3319:
-            socket = "/run/mysqld/mysqld.s" + str(port)[-1:] + ".sock"
-        elif port == 3320:
-            socket = "/run/mysqld/mysqld.x1.sock"
-        elif port == 3350:
-            socket = "/run/mysqld/mysqld.staging.sock"
-        elif port == 3351:
-            socket = "/run/mysqld/mysqld.matomo.sock"
-        elif port == 3352:
-            socket = "/run/mysqld/mysqld.analytics_meta.sock"
+        section = WMFMariaDB.get_section_from_port(port)
+        if section is None:
+            return "/run/mysqld/mysqld.sock"
         else:
-            socket = "/run/mysqld/mysqld.m" + str(port)[-1:] + ".sock"
-
-        return socket
+            return "/run/mysqld/mysqld." + section + ".sock"
 
     @staticmethod
     def get_credentials(host, port, database):
