@@ -7,6 +7,7 @@ class CommandReturn:
     It assumes the standard output and errors are "small" enough to be stored
     on memory.
     """
+
     def __init__(self, returncode, stdout, stderr):
         self.returncode = returncode
         self.stdout = stdout

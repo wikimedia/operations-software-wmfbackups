@@ -17,9 +17,7 @@ def run_subprocess(host, command, user, port, host_keys, input_pipe):
 
 
 class ParamikoExecution(RemoteExecution):
-
-    def __init__(self, user='root', port=22,
-                 host_keys='.ssh/known_hosts'):
+    def __init__(self, user="root", port=22, host_keys=".ssh/known_hosts"):
         self.user = user
         self.port = port
         self.host_keys = host_keys
@@ -34,7 +32,7 @@ class ParamikoExecution(RemoteExecution):
         client.connect(host, username=self.user, port=self.port)
         try:
             stdinfile, stdoutfile, stderrfile = client.exec_command(
-                ' '.join([shlex.quote(x) for x in command])
+                " ".join([shlex.quote(x) for x in command])
             )
             with stdoutfile as f:
                 stdout = f.read()
@@ -51,29 +49,29 @@ class ParamikoExecution(RemoteExecution):
 
     def start_job(self, host, command):
         output_pipe, input_pipe = Pipe()
-        job = Process(target=run_subprocess,
-                      args=(host, command, self.user, self.port,
-                            self.host_keys, input_pipe)
-                      )
+        job = Process(
+            target=run_subprocess,
+            args=(host, command, self.user, self.port, self.host_keys, input_pipe),
+        )
         job.start()
         input_pipe.close()
-        return {'process': job, 'pipe': output_pipe}
+        return {"process": job, "pipe": output_pipe}
 
     def monitor_job(self, host, job):
-        if job['process'].is_alive():
+        if job["process"].is_alive():
             return CommandReturn(None, None, None)
         else:
-            result = job['pipe'].recv()
-            job['pipe'].close()
+            result = job["pipe"].recv()
+            job["pipe"].close()
             return result
 
     def kill_job(self, host, job):
-        if job['process'].is_alive():
-            job['process'].terminate()
+        if job["process"].is_alive():
+            job["process"].terminate()
 
     def wait_job(self, host, job):
-        while job['process'].is_alive():
+        while job["process"].is_alive():
             time.sleep(1)
-        result = job['pipe'].recv()
-        job['pipe'].close()
+        result = job["pipe"].recv()
+        job["pipe"].close()
         return result

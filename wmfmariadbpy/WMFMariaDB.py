@@ -4,6 +4,7 @@ import os
 import glob
 import ipaddress
 import pwd
+
 # requires python3-pymysql
 import pymysql
 import re
@@ -28,20 +29,20 @@ class WMFMariaDB:
     __debug = False
 
     def name(self, show_db=True):
-        if self.host == 'localhost':
-            address = '{}[socket={}]'.format(self.host, self.socket)
+        if self.host == "localhost":
+            address = "{}[socket={}]".format(self.host, self.socket)
         else:
-            host = self.host.split('.')[0]
+            host = self.host.split(".")[0]
             if self.port == 3306:
                 address = host
             else:
-                address = '{}:{}'.format(host, self.port)
+                address = "{}:{}".format(host, self.port)
         if show_db:
             if self.database is None:
-                database = '(none)'
+                database = "(none)"
             else:
                 database = self.database
-            return '{}/{}'.format(address, database)
+            return "{}/{}".format(address, database)
         else:
             return address
 
@@ -50,10 +51,18 @@ class WMFMariaDB:
         Returns True if the current WMFMariaDB is connected to the same one than the one given.
         False otherwise (not the same, they are not WMFMariaDB objects, etc.)
         """
-        return self is not None and self.host is not None and \
-            other_instance is not None and other_instance.host is not None and \
-            self.host == other_instance.host and self.port == other_instance.port and \
-            ((self.socket is None and other_instance.socket is None) or self.socket == other_instance.socket)
+        return (
+            self is not None
+            and self.host is not None
+            and other_instance is not None
+            and other_instance.host is not None
+            and self.host == other_instance.host
+            and self.port == other_instance.port
+            and (
+                (self.socket is None and other_instance.socket is None)
+                or self.socket == other_instance.socket
+            )
+        )
 
     @staticmethod
     def get_socket_from_port(port):
@@ -61,19 +70,19 @@ class WMFMariaDB:
         Translates port number to expected socket location
         """
         if port == 3306:
-            socket = '/run/mysqld/mysqld.sock'
+            socket = "/run/mysqld/mysqld.sock"
         elif port >= 3311 and port <= 3319:
-            socket = '/run/mysqld/mysqld.s' + str(port)[-1:] + '.sock'
+            socket = "/run/mysqld/mysqld.s" + str(port)[-1:] + ".sock"
         elif port == 3320:
-            socket = '/run/mysqld/mysqld.x1.sock'
+            socket = "/run/mysqld/mysqld.x1.sock"
         elif port == 3350:
-            socket = '/run/mysqld/mysqld.staging.sock'
+            socket = "/run/mysqld/mysqld.staging.sock"
         elif port == 3351:
-            socket = '/run/mysqld/mysqld.matomo.sock'
+            socket = "/run/mysqld/mysqld.matomo.sock"
         elif port == 3352:
-            socket = '/run/mysqld/mysqld.analytics_meta.sock'
+            socket = "/run/mysqld/mysqld.analytics_meta.sock"
         else:
-            socket = '/run/mysqld/mysqld.m' + str(port)[-1:] + '.sock'
+            socket = "/run/mysqld/mysqld.m" + str(port)[-1:] + ".sock"
 
         return socket
 
@@ -83,44 +92,42 @@ class WMFMariaDB:
         Given a database instance, return the authentication method, including
         the user, password, socket and ssl configuration.
         """
-        if host == 'localhost':
+        if host == "localhost":
             user = pwd.getpwuid(os.getuid()).pw_name
             # connnect to localhost using plugin_auth:
-            config = configparser.ConfigParser(interpolation=None,
-                                               allow_no_value=True,
-                                               strict=False)
-            config.read('/etc/my.cnf')
+            config = configparser.ConfigParser(
+                interpolation=None, allow_no_value=True, strict=False
+            )
+            config.read("/etc/my.cnf")
             mysql_sock = WMFMariaDB.get_socket_from_port(port)
             ssl = None
             password = None
             charset = None
-        elif host == '127.0.0.1':
+        elif host == "127.0.0.1":
             # connect to localhost throught the port without ssl
-            config = configparser.ConfigParser(interpolation=None,
-                                               allow_no_value=True)
-            config.read('/root/.my.cnf')
-            user = config['client']['user']
-            password = config['client']['password']
+            config = configparser.ConfigParser(interpolation=None, allow_no_value=True)
+            config.read("/root/.my.cnf")
+            user = config["client"]["user"]
+            password = config["client"]["password"]
             ssl = None
             mysql_sock = None
             charset = None
-        elif not host.startswith('labsdb'):
+        elif not host.startswith("labsdb"):
             # connect to a production remote host, use ssl and prod pass
-            config = configparser.ConfigParser(interpolation=None,
-                                               allow_no_value=True)
-            config.read('/root/.my.cnf')
-            user = config['client']['user']
-            password = config['client']['password']
-            ssl = {'ca': '/etc/ssl/certs/Puppet_Internal_CA.pem'}
+            config = configparser.ConfigParser(interpolation=None, allow_no_value=True)
+            config.read("/root/.my.cnf")
+            user = config["client"]["user"]
+            password = config["client"]["password"]
+            ssl = {"ca": "/etc/ssl/certs/Puppet_Internal_CA.pem"}
             mysql_sock = None
             charset = None
         else:
             # connect to a labs remote host, use ssl and labs pass
             config = configparser.ConfigParser(interpolation=None)
-            config.read('/root/.my.cnf')
-            user = config['clientlabsdb']['user']
-            password = config['clientlabsdb']['password']
-            ssl = {'ca': '/etc/ssl/certs/Puppet_Internal_CA.pem'}
+            config.read("/root/.my.cnf")
+            user = config["clientlabsdb"]["user"]
+            password = config["clientlabsdb"]["password"]
+            ssl = {"ca": "/etc/ssl/certs/Puppet_Internal_CA.pem"}
             mysql_sock = None
             charset = None
 
@@ -153,9 +160,9 @@ class WMFMariaDB:
         completed as a best effort.
         If the original address is an IPv4 or IPv6 address, leave it as is
         """
-        if ':' in host:
+        if ":" in host:
             # we do not support ipv6 yet
-            host, port = host.split(':')
+            host, port = host.split(":")
             port = int(port)
 
         try:
@@ -164,27 +171,35 @@ class WMFMariaDB:
         except ValueError:
             pass
 
-        if '.' not in host and host != 'localhost':
-            domain = ''
-            if re.match('^[a-z]+1[0-9][0-9][0-9]$', host) is not None:
-                domain = '.eqiad.wmnet'
-            elif re.match('^[a-z]+2[0-9][0-9][0-9]$', host) is not None:
-                domain = '.codfw.wmnet'
-            elif re.match('^[a-z]+3[0-9][0-9][0-9]$', host) is not None:
-                domain = '.esams.wmnet'
-            elif re.match('^[a-z]+4[0-9][0-9][0-9]$', host) is not None:
-                domain = '.ulsfo.wmnet'
-            elif re.match('^[a-z]+5[0-9][0-9][0-9]$', host) is not None:
-                domain = '.eqsin.wmnet'
+        if "." not in host and host != "localhost":
+            domain = ""
+            if re.match("^[a-z]+1[0-9][0-9][0-9]$", host) is not None:
+                domain = ".eqiad.wmnet"
+            elif re.match("^[a-z]+2[0-9][0-9][0-9]$", host) is not None:
+                domain = ".codfw.wmnet"
+            elif re.match("^[a-z]+3[0-9][0-9][0-9]$", host) is not None:
+                domain = ".esams.wmnet"
+            elif re.match("^[a-z]+4[0-9][0-9][0-9]$", host) is not None:
+                domain = ".ulsfo.wmnet"
+            elif re.match("^[a-z]+5[0-9][0-9][0-9]$", host) is not None:
+                domain = ".eqsin.wmnet"
             else:
                 localhost_fqdn = socket.getfqdn()
-                if '.' in localhost_fqdn and len(localhost_fqdn) > 1:
-                    domain = localhost_fqdn[localhost_fqdn.index('.'):]
+                if "." in localhost_fqdn and len(localhost_fqdn) > 1:
+                    domain = localhost_fqdn[localhost_fqdn.index(".") :]
             host = host + domain
         return (host, port)
 
-    def __init__(self, host, port=3306, database=None, debug=False,
-                 connect_timeout=10.0, query_limit=None, vendor='MariaDB'):
+    def __init__(
+        self,
+        host,
+        port=3306,
+        database=None,
+        debug=False,
+        connect_timeout=10.0,
+        query_limit=None,
+        vendor="MariaDB",
+    ):
         """
         Try to connect to a mysql server instance and returns a python
         connection identifier, which you can use to send one or more queries.
@@ -193,18 +208,27 @@ class WMFMariaDB:
         self.vendor = vendor
         (host, port) = WMFMariaDB.resolve(host, port)
         (user, password, socket, ssl, charset) = WMFMariaDB.get_credentials(
-            host, port, database)
+            host, port, database
+        )
 
         try:
             self.connection = pymysql.connect(
-                host=host, port=port, user=user, password=password,
-                db=database, charset='utf8mb4', unix_socket=socket, ssl=ssl,
-                connect_timeout=connect_timeout, autocommit=True)
+                host=host,
+                port=port,
+                user=user,
+                password=password,
+                db=database,
+                charset="utf8mb4",
+                unix_socket=socket,
+                ssl=ssl,
+                connect_timeout=connect_timeout,
+                autocommit=True,
+            )
         except (pymysql.err.OperationalError, pymysql.err.InternalError, OSError) as e:
             self.connection = None
             self.__last_error = [e.args[0], e.args[1]]
             if self.debug:
-                print('ERROR {}: {}'.format(e.args[0], e.args[1]))
+                print("ERROR {}: {}".format(e.args[0], e.args[1]))
         self.host = host
         self.socket = socket
         self.port = int(port)
@@ -213,7 +237,7 @@ class WMFMariaDB:
         if query_limit is not None:
             self.set_query_limit(query_limit)  # we ignore it silently if it fails
         if self.debug:
-            print('Connected to {}'.format(self.name()))
+            print("Connected to {}".format(self.name()))
 
     def change_database(self, database):
         """
@@ -223,18 +247,18 @@ class WMFMariaDB:
         # cursor.execute('use `{}`'.format(database))
         # cursor.close()
         if self.connection is None:
-            print('ERROR: There is no connection active; could not change db')
+            print("ERROR: There is no connection active; could not change db")
             return -1
         try:
             self.connection.select_db(database)
         except (pymysql.err.OperationalError, pymysql.err.InternalError) as e:
             self.__last_error = [e.args[0], e.args[1]]
             if self.debug:
-                print('ERROR {}: {}'.format(e.args[0], e.args[1]))
+                print("ERROR {}: {}".format(e.args[0], e.args[1]))
             return -2
         self.database = database
         if self.debug:
-            print('Changed database to \'{}\''.format(self.database))
+            print("Changed database to '{}'".format(self.database))
 
     def set_query_limit(self, query_limit):
         """
@@ -244,16 +268,22 @@ class WMFMariaDB:
         """
         if query_limit is None or not query_limit or query_limit == 0:
             self.query_limit = 0
-        elif self.vendor == 'MariaDB':
+        elif self.vendor == "MariaDB":
             self.query_limit = float(query_limit)
         else:
             self.query_limit = int(query_limit * 1000.0)
 
-        if self.vendor == 'MariaDB':
-            result = self.execute('SET SESSION max_statement_time = {}'.format(self.query_limit))
+        if self.vendor == "MariaDB":
+            result = self.execute(
+                "SET SESSION max_statement_time = {}".format(self.query_limit)
+            )
         else:
-            result = self.execute('SET SESSION max_execution_time = {}'.format(self.query_limit))
-        return result['success']  # many versions will not accept query time restrictions
+            result = self.execute(
+                "SET SESSION max_execution_time = {}".format(self.query_limit)
+            )
+        return result[
+            "success"
+        ]  # many versions will not accept query time restrictions
 
     def execute(self, command, timeout=None, dryrun=False):
         """
@@ -262,9 +292,15 @@ class WMFMariaDB:
         """
         # we are not connected, abort immediately
         if self.connection is None:
-            return {"query": command, "host": self.host, "port": self.port,
-                    "database": self.database, "success": False,
-                    "errno": self.last_error[0], "errmsg": self.last_error[1]}
+            return {
+                "query": command,
+                "host": self.host,
+                "port": self.port,
+                "database": self.database,
+                "success": False,
+                "errno": self.last_error[0],
+                "errmsg": self.last_error[1],
+            }
         cursor = self.connection.cursor()
         if timeout is not None:
             original_query_limit = self.query_limit
@@ -272,16 +308,22 @@ class WMFMariaDB:
 
         try:
             if dryrun:
-                print(("We will *NOT* execute \'{}\' on {}:{}/{} because"
-                       "this is a dry run.").format(
-                    command, self.host, self.port, self.database))
-                cursor.execute('SELECT \'success\' as dryrun')
+                print(
+                    (
+                        "We will *NOT* execute '{}' on {}:{}/{} because"
+                        "this is a dry run."
+                    ).format(command, self.host, self.port, self.database)
+                )
+                cursor.execute("SELECT 'success' as dryrun")
             else:
                 if self.debug:
-                    print('Executing \'{}\''.format(command))
+                    print("Executing '{}'".format(command))
                 cursor.execute(command)
-        except (pymysql.err.ProgrammingError, pymysql.err.OperationalError,
-                pymysql.err.InternalError) as e:
+        except (
+            pymysql.err.ProgrammingError,
+            pymysql.err.OperationalError,
+            pymysql.err.InternalError,
+        ) as e:
             cursor.close()
             query = command
             host = self.host
@@ -289,10 +331,16 @@ class WMFMariaDB:
             database = self.database
             self.__last_error = [e.args[0], e.args[1]]
             if self.debug:
-                print('ERROR {}: {}'.format(e.args[0], e.args[1]))
-            result = {"query": query, "host": host, "port": port,
-                      "database": database, "success": False,
-                      "errno": self.last_error[0], "errmsg": self.last_error[1]}
+                print("ERROR {}: {}".format(e.args[0], e.args[1]))
+            result = {
+                "query": query,
+                "host": host,
+                "port": port,
+                "database": database,
+                "success": False,
+                "errno": self.last_error[0],
+                "errmsg": self.last_error[1],
+            }
             if timeout is not None:
                 self.set_query_limit(original_query_limit)
             return result
@@ -312,18 +360,25 @@ class WMFMariaDB:
         if timeout is not None:
             self.set_query_limit(original_query_limit)
 
-        return {"query": query, "host": host, "port": port,
-                "database": database, "success": True, "numrows": numrows,
-                "rows": rows, "fields": fields}
+        return {
+            "query": query,
+            "host": host,
+            "port": port,
+            "database": database,
+            "success": True,
+            "numrows": numrows,
+            "rows": rows,
+            "fields": fields,
+        }
 
     def get_version(self):
         """
         Returns the version of the db server in the form of a (major, minor, patch) tuple.
         """
         result = self.execute("SELECT @@VERSION")
-        if not result['success']:
+        if not result["success"]:
             return ()
-        ver_nums = result['rows'][0][0].split("-")[0]
+        ver_nums = result["rows"][0][0].split("-")[0]
         return tuple(map(int, ver_nums.split(".")))
 
     @staticmethod
@@ -339,53 +394,53 @@ class WMFMariaDB:
         there are not repeated shards/hosts (except in the same instance has
         more than one shard), so no virtual dblists or hosts files.
         """
-        if shard == 'ALL':
+        if shard == "ALL":
             # do a recursive call for every shard found
             wiki_list = []
-            shard_dblists = glob.glob('*.dblist')
+            shard_dblists = glob.glob("*.dblist")
             for file in shard_dblists:
-                shard = re.search(r'([^/]+)\.dblist', file).group(1)
+                shard = re.search(r"([^/]+)\.dblist", file).group(1)
                 wiki_list += WMFMariaDB.get_wikis(shard=shard, wiki=wiki)
             return wiki_list
         elif shard is None and wiki is None:
             # No shards or wikis selected, return the empty list
-            print('No wikis selected')
+            print("No wikis selected")
             return list()
         elif shard is None and wiki is not None:
             # TODO: shard is not set, search the shard for a wiki
             dbs = [wiki]
-            shard_dblists = glob.glob('*.dblist')
+            shard_dblists = glob.glob("*.dblist")
             for file in shard_dblists:
                 shard_dbs = []
-                with open(file, 'r') as f:
+                with open(file, "r") as f:
                     shard_dbs = f.read().splitlines()
                 # print('{}: {}'.format(file, shard_dbs))
                 if wiki in shard_dbs:
-                    shard = re.search(r'([^/]+)\.dblist', file).group(1)
+                    shard = re.search(r"([^/]+)\.dblist", file).group(1)
                     break
-            if shard is None or shard == '':
-                print('The wiki \'{}\' wasn\'t found on any shard'.format(
-                    wiki))
+            if shard is None or shard == "":
+                print("The wiki '{}' wasn't found on any shard".format(wiki))
                 return list()
         elif shard is not None and wiki is not None:
             # both shard and wiki are set, check the wiki is really on the
             # shard
             shard_dbs = []
-            with open('{}.dblist'.format(shard), 'r') as f:
+            with open("{}.dblist".format(shard), "r") as f:
                 shard_dbs = f.read().splitlines()
             if wiki not in shard_dbs:
-                print("The wiki '{}' wasn't found on the shard '{}'".format(
-                    wiki, shard))
+                print(
+                    "The wiki '{}' wasn't found on the shard '{}'".format(wiki, shard)
+                )
                 return list()
             dbs = [wiki]
         else:
             # shard is set, but not wiki, get all dbs from that shard
             dbs = []
-            with open('{}.dblist'.format(shard), 'r') as f:
+            with open("{}.dblist".format(shard), "r") as f:
                 dbs = f.read().splitlines()
 
-        with open('{}.hosts'.format(shard), 'r') as f:
-            hosts = list(csv.reader(f, delimiter='\t'))
+        with open("{}.hosts".format(shard), "r") as f:
+            hosts = list(csv.reader(f, delimiter="\t"))
 
         # print(hosts)
         # print(dbs)
@@ -404,30 +459,43 @@ class WMFMariaDB:
         dblist = WMFMariaDB.get_wikis(shard=shard, wiki=wiki)
 
         for host, port, database in dblist:
-            if (connection is not None and connection.host == host
-                    and connection.port == port
-                    and connection.database != database):
+            if (
+                connection is not None
+                and connection.host == host
+                and connection.port == port
+                and connection.database != database
+            ):
                 connection.change_database(database)
                 if connection.database != database:
-                    print('Could not change to database {}'. format(database))
+                    print("Could not change to database {}".format(database))
                     continue
             else:
                 if connection is not None:
                     connection.disconnect()
-                connection = WMFMariaDB(host=host, port=port,
-                                        database=database, debug=debug)
+                connection = WMFMariaDB(
+                    host=host, port=port, database=database, debug=debug
+                )
 
             if connection.connection is None:
-                print('ERROR: Could not connect to {}:{}/{}'.format(host, port,
-                                                                    database))
+                print(
+                    "ERROR: Could not connect to {}:{}/{}".format(host, port, database)
+                )
                 resultset = None
             else:
                 resultset = connection.execute(command, dryrun)
 
             if resultset is None:
-                result.append({"success": False, "host": host, "port": port,
-                               "database": database, "numrows": 0,
-                               "rows": None, "fields": None})
+                result.append(
+                    {
+                        "success": False,
+                        "host": host,
+                        "port": port,
+                        "database": database,
+                        "numrows": 0,
+                        "rows": None,
+                        "fields": None,
+                    }
+                )
             else:
                 result.append(resultset)
 
@@ -442,8 +510,11 @@ class WMFMariaDB:
         until a new connection is open.
         """
         if self.debug:
-            print('Disconnecting from {}:{}/{}'.format(self.port, self.host,
-                                                       self.database))
+            print(
+                "Disconnecting from {}:{}/{}".format(
+                    self.port, self.host, self.database
+                )
+            )
         if self.connection is not None:
             self.connection.close()
             self.connection = None

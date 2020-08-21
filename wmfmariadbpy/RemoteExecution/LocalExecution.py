@@ -11,14 +11,14 @@ class LocalExecution(RemoteExecution):
     """
 
     def run(self, host, command):
-        result = subprocess.run(command, stdout=subprocess.PIPE,
-                                stderr=subprocess.PIPE)
+        result = subprocess.run(command, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
         return CommandReturn(result.returncode, result.stdout, result.stderr)
 
     def start_job(self, host, command):
         print(command)
-        process = subprocess.Popen(command, stdout=subprocess.PIPE,
-                                   stderr=subprocess.PIPE)
+        process = subprocess.Popen(
+            command, stdout=subprocess.PIPE, stderr=subprocess.PIPE
+        )
         return process
 
     def monitor_job(self, host, job):

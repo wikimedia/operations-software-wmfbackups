@@ -44,13 +44,15 @@ class OnlineSchemaChanger(object):
     def connection(self):
         """Return the connection to the database (and create if needed)."""
         if not self._conn:
-            self._conn = WMFMariaDB(host=self.conf.host,
-                                    port=self.conf.port,
-                                    debug=self.conf.debug)
+            self._conn = WMFMariaDB(
+                host=self.conf.host, port=self.conf.port, debug=self.conf.debug
+            )
             if not self._conn or not self._conn.connection:
-                print("Connect failed: {}@{}:{}".format(self.conf.user,
-                                                        self.conf.host,
-                                                        self.conf.port))
+                print(
+                    "Connect failed: {}@{}:{}".format(
+                        self.conf.user, self.conf.host, self.conf.port
+                    )
+                )
                 sys.exit(1)
 
         return self._conn
@@ -77,8 +79,10 @@ class OnlineSchemaChanger(object):
     def ddl_args(self):
         """Get the data definition language args."""
         if not self._ddlargs:
-            self._ddlargs = ["SET SESSION innodb_lock_wait_timeout=1;",
-                             "SET SESSION lock_wait_timeout=60;"]
+            self._ddlargs = [
+                "SET SESSION innodb_lock_wait_timeout=1;",
+                "SET SESSION lock_wait_timeout=60;",
+            ]
 
             self._ddlargs.extend(self.ddl_rep)
 
@@ -97,7 +101,7 @@ class OnlineSchemaChanger(object):
                 self._ptrep = ["--recurse=0", "--set-vars=sql_log_bin=off"]
 
             res = self.connection.execute("show slave status")
-            slave = res.get('numrows', 0) > 0
+            slave = res.get("numrows", 0) > 0
             if slave:
                 self._ptrep.append("--check-slave-lag={}".format(self.conf.host))
 
@@ -126,10 +130,14 @@ class OnlineSchemaChanger(object):
                 self._ptargs.append("--no-check-alter")
 
             if self.conf.no_cleanup:
-                self._ptargs.extend(["--no-swap-tables",
-                                     "--no-drop-new-table",
-                                     "--no-drop-old-table",
-                                     "--no-drop-triggers"])
+                self._ptargs.extend(
+                    [
+                        "--no-swap-tables",
+                        "--no-drop-new-table",
+                        "--no-drop-old-table",
+                        "--no-drop-triggers",
+                    ]
+                )
 
             self._ptargs.extend(self.pt_osc_rep)
 
@@ -140,15 +148,15 @@ class OnlineSchemaChanger(object):
         if not self.conf.warn:
             return
         answer = input("continue? yes/no ")
-        if not answer.startswith('y'):
-            print('abort')
+        if not answer.startswith("y"):
+            print("abort")
             sys.exit(0)
 
     def _execute(self, sql):
         """Run a query and return wether it was successfull or not."""
         print(sql)
         res = self.connection.execute(sql)
-        return res.get('success')
+        return res.get("success")
 
     def execute(self, sql, args=[]):
         """Run a query and return wether it was successfull or not.
@@ -165,7 +173,7 @@ class OnlineSchemaChanger(object):
     def osctool(self):
         """Get the pt osc tool."""
         if not self._osctool:
-            self._osctool = shutil.which('pt-online-schema-change')
+            self._osctool = shutil.which("pt-online-schema-change")
             if not self._osctool:
                 print("Error: Could not find 'pt-online-schema-change'.")
                 sys.exit(1)
@@ -176,20 +184,23 @@ class OnlineSchemaChanger(object):
         """Run a command with Popen and return True if successful."""
         stdout = None if self.conf.debug else subprocess.PIPE
         stderr = None if self.conf.debug else subprocess.PIPE
-        process = subprocess.Popen(cmd,
-                                   stdout=stdout,
-                                   stderr=stderr)
+        process = subprocess.Popen(cmd, stdout=stdout, stderr=stderr)
         ret_code = process.wait()
         return ret_code == 0
 
     def run_pt_ost_alter(self, db, dry_run=False):
         """Run the percona ost alter on the given db."""
-        cmd = [self.osctool,
-               "--critical-load", "Threads_running=400",
-               "--max-load", "Threads_running=300",
-               "--alter-foreign-keys-method=none", "--force",
-               "--nocheck-replication-filters",
-               "--no-version-check"]
+        cmd = [
+            self.osctool,
+            "--critical-load",
+            "Threads_running=400",
+            "--max-load",
+            "Threads_running=300",
+            "--alter-foreign-keys-method=none",
+            "--force",
+            "--nocheck-replication-filters",
+            "--no-version-check",
+        ]
 
         if dry_run:
             cmd.append("--dry-run")
@@ -198,12 +209,15 @@ class OnlineSchemaChanger(object):
             cmd.append("--execute")
             cmd.extend(self.pt_osc_args)
 
-        cmd.extend(["--alter", '{}'.format(self.conf.altersql),
-                    "D={},t={},h={},P={},u={}".format(db,
-                                                      self.conf.table,
-                                                      self.conf.host,
-                                                      self.conf.port,
-                                                      self.conf.user)])
+        cmd.extend(
+            [
+                "--alter",
+                "{}".format(self.conf.altersql),
+                "D={},t={},h={},P={},u={}".format(
+                    db, self.conf.table, self.conf.host, self.conf.port, self.conf.user
+                ),
+            ]
+        )
 
         return self.run_command(cmd)
 
@@ -247,9 +261,9 @@ class OnlineSchemaChanger(object):
 
     def check_collision(self):
         """Check for table collisions and ask for confirmation if so."""
-        new_table = '_{}_new'.format(self.conf.table)
+        new_table = "_{}_new".format(self.conf.table)
         res = self.connection.execute("show tables like '{}'".format(new_table))
-        if res.get('numrows', 0) > 0:
+        if res.get("numrows", 0) > 0:
             print("{} already exists!".format(new_table))
             self.confirm()
 
@@ -266,10 +280,16 @@ class OnlineSchemaChanger(object):
                     sql = "analyze table {};".format(self.conf.table)
                     self.execute(sql, self.ddl_rep)
             else:
-                print("WARNING {} : {} encountered problems".format(db, self.conf.table))
+                print(
+                    "WARNING {} : {} encountered problems".format(db, self.conf.table)
+                )
                 return False
         else:
-            print("SKIPPING {} : {} dry-run encountered problems".format(db, self.conf.table))
+            print(
+                "SKIPPING {} : {} dry-run encountered problems".format(
+                    db, self.conf.table
+                )
+            )
             return False
 
         return True
@@ -284,8 +304,11 @@ class OnlineSchemaChanger(object):
             sql = "alter online table `{}` {}".format(table, alter)
 
         if not self.execute(sql, self.ddl_args):
-            print("WARNING {} encountered problems while being executed at {}.{}"
-                  .format(alter, db, table))
+            print(
+                "WARNING {} encountered problems while being executed at {}.{}".format(
+                    alter, db, table
+                )
+            )
             return False
 
         return True
@@ -299,7 +322,7 @@ class OnlineSchemaChanger(object):
             self.change_database(db)
 
             success = True
-            if self.conf.method == 'percona':
+            if self.conf.method == "percona":
                 self.check_collision()
                 success = self.run_percona(db)
             elif self.conf.method in ("ddl", "ddlonline"):
@@ -314,61 +337,64 @@ def parse_args():
     """Parse the execution parameters and return an object with them."""
     parser = argparse.ArgumentParser()
 
-    parser.add_argument('--host',
-                        help="the host to connect to",
-                        required=True)
-    parser.add_argument('--port', type=int,
-                        help="the port to connect to",
-                        default=3306)
+    parser.add_argument("--host", help="the host to connect to", required=True)
+    parser.add_argument("--port", type=int, help="the port to connect to", default=3306)
 
-    parser.add_argument('--user', help="username to use",
-                        default='root')
+    parser.add_argument("--user", help="username to use", default="root")
 
     dblist_group = parser.add_mutually_exclusive_group(required=True)
-    dblist_group.add_argument('--db', nargs='+',
-                              help="Database(s) to be altered")
-    dblist_group.add_argument('--dblist',
-                              help="File with the list of databases")
+    dblist_group.add_argument("--db", nargs="+", help="Database(s) to be altered")
+    dblist_group.add_argument("--dblist", help="File with the list of databases")
 
-    parser.add_argument('--table',
-                        help="Table to alter",
-                        required=True)
+    parser.add_argument("--table", help="Table to alter", required=True)
 
-    methods = ['percona', 'ddl', 'ddlonline']
-    parser.add_argument('--method',
-                        help="Method to use ({})".format(', '.join(methods)),
-                        choices=methods,
-                        default='percona')
+    methods = ["percona", "ddl", "ddlonline"]
+    parser.add_argument(
+        "--method",
+        help="Method to use ({})".format(", ".join(methods)),
+        choices=methods,
+        default="percona",
+    )
 
     warn_group = parser.add_mutually_exclusive_group()
-    warn_group.add_argument('--warn', action='store_true', dest='warn',
-                            help="Ask for confirmation after a problem")
-    warn_group.add_argument('--no-warn', action='store_false', dest='warn',
-                            help="Don't ask for confirmation after a problem")
+    warn_group.add_argument(
+        "--warn",
+        action="store_true",
+        dest="warn",
+        help="Ask for confirmation after a problem",
+    )
+    warn_group.add_argument(
+        "--no-warn",
+        action="store_false",
+        dest="warn",
+        help="Don't ask for confirmation after a problem",
+    )
 
     analyze_group = parser.add_mutually_exclusive_group()
-    analyze_group.add_argument('--analyze',
-                               action='store_true', dest='analyze',
-                               help="Analyze after the alter")
-    analyze_group.add_argument('--no-analyze',
-                               action='store_false', dest='analyze',
-                               help="Don't analyze after the alter")
+    analyze_group.add_argument(
+        "--analyze", action="store_true", dest="analyze", help="Analyze after the alter"
+    )
+    analyze_group.add_argument(
+        "--no-analyze",
+        action="store_false",
+        dest="analyze",
+        help="Don't analyze after the alter",
+    )
 
-    parser.add_argument('altersql', nargs="+",
-                        help="Modification to be applied")
+    parser.add_argument("altersql", nargs="+", help="Modification to be applied")
 
-    parser.add_argument('--debug',
-                        action='store_true',
-                        help="Show debug info")
+    parser.add_argument("--debug", action="store_true", help="Show debug info")
 
     parser.set_defaults(warn=True)
     parser.set_defaults(analyze=False)
 
     replicate_group = parser.add_mutually_exclusive_group()
-    replicate_group.add_argument('--replicate', action='store_true',
-                                 help="Replicate the changes")
-    replicate_group.add_argument('--no-replicate', action='store_true',
-                                 help="Don't replicate the changes")
+    replicate_group.add_argument(
+        "--replicate", action="store_true", help="Replicate the changes"
+    )
+    replicate_group.add_argument(
+        "--no-replicate", action="store_true", help="Don't replicate the changes"
+    )
 
     def valid_gtid(value):
         pat = re.compile(r"[0-9]+")
@@ -377,21 +403,26 @@ def parse_args():
             raise argparse.ArgumentTypeError(error_msg)
         return value
 
-    parser.add_argument('--gtid_domain_id', type=valid_gtid,
-                        help="gtid domain id")
+    parser.add_argument("--gtid_domain_id", type=valid_gtid, help="gtid domain id")
 
-    parser.add_argument('--primary-key', action='store_true',
-                        help="Don't panic when altering a primary key")
-    parser.add_argument('--no-cleanup', action='store_true',
-                        help="Don't actually switch the new and old tables on completion")
+    parser.add_argument(
+        "--primary-key",
+        action="store_true",
+        help="Don't panic when altering a primary key",
+    )
+    parser.add_argument(
+        "--no-cleanup",
+        action="store_true",
+        help="Don't actually switch the new and old tables on completion",
+    )
 
     args = parser.parse_args()
 
-    args.altersql = ' '.join(args.altersql)
+    args.altersql = " ".join(args.altersql)
 
     # Check list of databases is correct
     if args.dblist:
-        if not args.dblist.endswith('.dblist'):
+        if not args.dblist.endswith(".dblist"):
             print("'{}' doesn't have the 'dblist' extension".format(args.dblist))
             sys.exit(1)
 

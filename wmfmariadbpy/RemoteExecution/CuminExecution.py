@@ -34,26 +34,26 @@ class CuminExecution(RemoteExecution):
         if isinstance(command, str):
             return command
         else:
-            return ' '.join(command)
+            return " ".join(command)
 
     def run(self, host, command):
         hosts = query.Query(self.config).execute(host)
         if not hosts:
-            return CommandReturn(1, None, 'host is wrong or does not match rules')
+            return CommandReturn(1, None, "host is wrong or does not match rules")
         target = transports.Target(hosts)
         worker = transport.Transport.new(self.config, target)
         worker.commands = [self.format_command(command)]
-        worker.handler = 'sync'
+        worker.handler = "sync"
 
         # If verbose is false, suppress stdout and stderr of Cumin.
-        if self.options.get('verbose', False):
+        if self.options.get("verbose", False):
             return_code = worker.execute()
         else:
             # Temporary workaround until Cumin has full support to suppress output (T212783).
             stdout = transports.clustershell.sys.stdout
             stderr = transports.clustershell.sys.stderr
             try:
-                with open(os.devnull, 'w') as discard_output:
+                with open(os.devnull, "w") as discard_output:
                     transports.clustershell.sys.stdout = discard_output
                     transports.clustershell.sys.stderr = discard_output
                     return_code = worker.execute()
@@ -63,7 +63,7 @@ class CuminExecution(RemoteExecution):
 
         for nodes, output in worker.get_results():
             if host in nodes:
-                result = str(bytes(output), 'utf-8')
+                result = str(bytes(output), "utf-8")
                 return CommandReturn(return_code, result, None)
 
         return CommandReturn(return_code, None, None)
@@ -73,22 +73,22 @@ class CuminExecution(RemoteExecution):
         job = Process(target=run_subprocess, args=(host, command, input_pipe))
         job.start()
         input_pipe.close()
-        return {'process': job, 'pipe': output_pipe}
+        return {"process": job, "pipe": output_pipe}
 
     def monitor_job(self, host, job):
-        if job['process'].is_alive():
+        if job["process"].is_alive():
             return CommandReturn(None, None, None)
         else:
-            result = job['pipe'].recv()
-            job['pipe'].close()
+            result = job["pipe"].recv()
+            job["pipe"].close()
             return result
 
     def kill_job(self, host, job):
-        if job['process'].is_alive():
-            job['process'].terminate()
+        if job["process"].is_alive():
+            job["process"].terminate()
 
     def wait_job(self, host, job):
-        job['process'].join()
-        result = job['pipe'].recv()
-        job['pipe'].close()
+        job["process"].join()
+        result = job["pipe"].recv()
+        job["pipe"].close()
         return result

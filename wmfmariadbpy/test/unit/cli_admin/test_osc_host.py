@@ -15,7 +15,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
     def setUp(self):
         """Set up the tests."""
         self.conf = MagicMock()
-        self.conf.host = 'host'
+        self.conf.host = "host"
         self.conf.port = 1234
         self.conf.debug = False
         self.osc = OnlineSchemaChanger(self.conf)
@@ -33,7 +33,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         connection.disconnect.assert_called_once_with()
 
-    @patch('wmfmariadbpy.cli_admin.osc_host.WMFMariaDB')
+    @patch("wmfmariadbpy.cli_admin.osc_host.WMFMariaDB")
     def test_connection(self, mock):
         """Test connection creation."""
         new_connection = MagicMock()
@@ -44,13 +44,13 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         self.assertEqual(new_connection, self.osc._conn)
         self.assertEqual(new_connection, self.osc.connection)
 
-        mock.assert_called_once_with(host=self.conf.host,
-                                     port=self.conf.port,
-                                     debug=self.conf.debug)
+        mock.assert_called_once_with(
+            host=self.conf.host, port=self.conf.port, debug=self.conf.debug
+        )
 
-    @patch('wmfmariadbpy.cli_admin.osc_host.WMFMariaDB')
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("wmfmariadbpy.cli_admin.osc_host.WMFMariaDB")
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_failed_connection(self, exit_mock, print_mock, db_mock):
         """Test failed connection creation."""
         new_connection = MagicMock()
@@ -59,9 +59,9 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
         self.osc.connection
 
-        expected_error = "Connect failed: {}@{}:{}".format(self.conf.user,
-                                                           self.conf.host,
-                                                           self.conf.port)
+        expected_error = "Connect failed: {}@{}:{}".format(
+            self.conf.user, self.conf.host, self.conf.port
+        )
         print_mock.assert_called_once_with(expected_error)
         exit_mock.assert_called_once_with(1)
 
@@ -100,9 +100,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_ddl_args(self):
         """Test ddl argument construction."""
-        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_rep',
-                   new_callable=PropertyMock) as mock_ddlrep:
-            rep_args = ['rep_arg1', 'rep_arg2']
+        with patch(
+            "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_rep",
+            new_callable=PropertyMock,
+        ) as mock_ddlrep:
+            rep_args = ["rep_arg1", "rep_arg2"]
             mock_ddlrep.return_value = rep_args
             mocked_osc = OnlineSchemaChanger(self.conf)
 
@@ -163,7 +165,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         """Test default percona replication args for a slave."""
         existing_connection = MagicMock()
         self.osc._conn = existing_connection
-        existing_connection.execute.return_value = {'numrows': 1}
+        existing_connection.execute.return_value = {"numrows": 1}
 
         self.conf.replicate = False
         self.conf.no_replicate = False
@@ -178,9 +180,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_dry_run_args(self):
         """Test default Percona Toolkit OSC args for the dry run."""
-        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
-                   new_callable=PropertyMock) as mock_ptrep:
-            rep_args = ['rep_arg1', 'rep_arg2']
+        with patch(
+            "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep",
+            new_callable=PropertyMock,
+        ) as mock_ptrep:
+            rep_args = ["rep_arg1", "rep_arg2"]
             mock_ptrep.return_value = rep_args
             self.conf.primary_key = False
             mocked_osc = OnlineSchemaChanger(self.conf)
@@ -195,9 +199,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_dry_run_args_primery_key(self):
         """Test Percona Toolkit OSC args for the dry run with primary-key option."""
-        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
-                   new_callable=PropertyMock) as mock_ptrep:
-            rep_args = ['rep_arg1', 'rep_arg2']
+        with patch(
+            "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep",
+            new_callable=PropertyMock,
+        ) as mock_ptrep:
+            rep_args = ["rep_arg1", "rep_arg2"]
             mock_ptrep.return_value = rep_args
             self.conf.primary_key = True
             mocked_osc = OnlineSchemaChanger(self.conf)
@@ -213,9 +219,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_args(self):
         """Test default Percona Toolkit OSC args."""
-        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
-                   new_callable=PropertyMock) as mock_ptrep:
-            rep_args = ['rep_arg1', 'rep_arg2']
+        with patch(
+            "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep",
+            new_callable=PropertyMock,
+        ) as mock_ptrep:
+            rep_args = ["rep_arg1", "rep_arg2"]
             mock_ptrep.return_value = rep_args
             self.conf.primary_key = False
             self.conf.no_cleanup = False
@@ -231,9 +239,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_args_primery_key(self):
         """Test Percona Toolkit OSC args with primary-key option."""
-        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
-                   new_callable=PropertyMock) as mock_ptrep:
-            rep_args = ['rep_arg1', 'rep_arg2']
+        with patch(
+            "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep",
+            new_callable=PropertyMock,
+        ) as mock_ptrep:
+            rep_args = ["rep_arg1", "rep_arg2"]
             mock_ptrep.return_value = rep_args
             self.conf.primary_key = True
             self.conf.no_cleanup = False
@@ -250,9 +260,11 @@ class TestOnlineSchemaChanger(unittest.TestCase):
 
     def test_pt_osc_args_no_cleanup(self):
         """Test Percona Toolkit OSC args with no-cleanup option."""
-        with patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep',
-                   new_callable=PropertyMock) as mock_ptrep:
-            rep_args = ['rep_arg1', 'rep_arg2']
+        with patch(
+            "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_rep",
+            new_callable=PropertyMock,
+        ) as mock_ptrep:
+            rep_args = ["rep_arg1", "rep_arg2"]
             mock_ptrep.return_value = rep_args
             self.conf.primary_key = False
             self.conf.no_cleanup = True
@@ -261,10 +273,12 @@ class TestOnlineSchemaChanger(unittest.TestCase):
             self.assertEqual([], mocked_osc._ptargs)
             ptargs = mocked_osc.pt_osc_args
 
-            no_cleanup_args = ["--no-swap-tables",
-                               "--no-drop-new-table",
-                               "--no-drop-old-table",
-                               "--no-drop-triggers"]
+            no_cleanup_args = [
+                "--no-swap-tables",
+                "--no-drop-new-table",
+                "--no-drop-old-table",
+                "--no-drop-triggers",
+            ]
             self.assertEqual(len(no_cleanup_args) + len(rep_args), len(ptargs))
             for arg in no_cleanup_args:
                 self.assertIn(arg, ptargs)
@@ -273,9 +287,9 @@ class TestOnlineSchemaChanger(unittest.TestCase):
             self.assertListEqual(ptargs, mocked_osc._ptargs)
             mock_ptrep.assert_called_once_with()
 
-    @patch('builtins.input', lambda x: 'y')
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.input", lambda x: "y")
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_confirm_yes(self, exit_mock, print_mock):
         """Afirmative confirmation."""
         self.osc.confirm()
@@ -283,9 +297,9 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         exit_mock.assert_not_called()
         print_mock.assert_not_called()
 
-    @patch('builtins.input', lambda x: 'n')
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("builtins.input", lambda x: "n")
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_confirm_no(self, exit_mock, print_mock):
         """Negative confirmation."""
         self.osc.confirm()
@@ -293,19 +307,19 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         exit_mock.assert_called_once_with(0)
         print_mock.assert_called_once_with("abort")
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_execute(self, print_mock):
         """Test query execution."""
         existing_connection = MagicMock()
         self.osc._conn = existing_connection
-        test_sql = 'test sql'
+        test_sql = "test sql"
 
         self.assertTrue(self.osc.execute(test_sql))
 
         print_mock.assert_called_once_with(test_sql)
         existing_connection.execute.assert_called_once_with(test_sql)
 
-        args = ['args1', 'args2']
+        args = ["args1", "args2"]
         self.assertTrue(self.osc.execute(test_sql, args))
 
         call_list = [call(a) for a in args]
@@ -313,49 +327,51 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         print_mock.assert_has_calls(call_list)
         existing_connection.execute.assert_has_calls(call_list, True)
 
-    @patch('builtins.print')
+    @patch("builtins.print")
     def test_failed_execute(self, print_mock):
         """Test failed query execution."""
         existing_connection = MagicMock()
         self.osc._conn = existing_connection
-        test_sql = 'test sql'
-        args = ['args1', 'args2']
-        existing_connection.execute.return_value = {'success': False}
+        test_sql = "test sql"
+        args = ["args1", "args2"]
+        existing_connection.execute.return_value = {"success": False}
 
         self.assertFalse(self.osc.execute(test_sql, args))
 
         print_mock.assert_called_once_with(args[0])
         existing_connection.execute.assert_called_once_with(args[0])
 
-    @patch('shutil.which')
+    @patch("shutil.which")
     def test_osctool(self, which_mock):
         """Test osctool calls."""
-        path = 'osctool/path'
+        path = "osctool/path"
         which_mock.return_value = path
 
-        self.assertEqual('', self.osc._osctool)
+        self.assertEqual("", self.osc._osctool)
         self.assertEqual(path, self.osc.osctool)
         self.assertEqual(path, self.osc._osctool)
         self.assertEqual(path, self.osc.osctool)
 
-        which_mock.assert_called_once_with('pt-online-schema-change')
+        which_mock.assert_called_once_with("pt-online-schema-change")
 
-    @patch('shutil.which')
-    @patch('builtins.print')
-    @patch('sys.exit')
+    @patch("shutil.which")
+    @patch("builtins.print")
+    @patch("sys.exit")
     def test_no_osctool(self, exit_mock, print_mock, which_mock):
         """Test osctool calls with the script not availabe."""
         which_mock.return_value = None
 
         self.osc.osctool
 
-        print_mock.assert_called_once_with("Error: Could not find 'pt-online-schema-change'.")
+        print_mock.assert_called_once_with(
+            "Error: Could not find 'pt-online-schema-change'."
+        )
         exit_mock.assert_called_once_with(1)
 
-    @patch('subprocess.Popen')
+    @patch("subprocess.Popen")
     def test_run_command(self, popen_mock):
         """Test run_command method."""
-        cmd = ['test', '--some-arg']
+        cmd = ["test", "--some-arg"]
 
         self.conf.debug = False
         popen_mock.return_value.wait.return_value = 0
@@ -376,34 +392,50 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         ]
         popen_mock.assert_has_calls(call_list, True)
 
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
-           new_callable=PropertyMock)
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args',
-           new_callable=PropertyMock)
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.osctool',
-           new_callable=PropertyMock)
-    def test_run_pt_ost_alter(self, osctool_mock, pt_osc_args_mock, pt_osc_dr_args_mock):
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args",
+        new_callable=PropertyMock,
+    )
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args",
+        new_callable=PropertyMock,
+    )
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.osctool",
+        new_callable=PropertyMock,
+    )
+    def test_run_pt_ost_alter(
+        self, osctool_mock, pt_osc_args_mock, pt_osc_dr_args_mock
+    ):
         """Test percona osc run."""
         self.osc.run_command = MagicMock(return_value=True)
 
-        self.assertTrue(self.osc.run_pt_ost_alter('test_db'))
+        self.assertTrue(self.osc.run_pt_ost_alter("test_db"))
         actual_cmd = self.osc.run_command.call_args[0][0]
         self.assertIn("--execute", actual_cmd)
         self.assertNotIn("--dry-run", actual_cmd)
         pt_osc_args_mock.assert_called_once_with()
         pt_osc_dr_args_mock.assert_not_called()
 
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
-           new_callable=PropertyMock)
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args',
-           new_callable=PropertyMock)
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.osctool',
-           new_callable=PropertyMock)
-    def test_run_pt_ost_alter_dry_run(self, osctool_mock, pt_osc_args_mock, pt_osc_dr_args_mock):
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args",
+        new_callable=PropertyMock,
+    )
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args",
+        new_callable=PropertyMock,
+    )
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.osctool",
+        new_callable=PropertyMock,
+    )
+    def test_run_pt_ost_alter_dry_run(
+        self, osctool_mock, pt_osc_args_mock, pt_osc_dr_args_mock
+    ):
         """Test percona osc dry run."""
         self.osc.run_command = MagicMock(return_value=True)
 
-        self.assertTrue(self.osc.run_pt_ost_alter('test_db', dry_run=True))
+        self.assertTrue(self.osc.run_pt_ost_alter("test_db", dry_run=True))
         actual_cmd = self.osc.run_command.call_args[0][0]
         self.assertNotIn("--execute", actual_cmd)
         self.assertIn("--dry-run", actual_cmd)
@@ -415,31 +447,39 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         self.osc.confirm = MagicMock()
         self.osc.execute = MagicMock()
 
-        self.osc.run_pt_cleanup('test_db')
+        self.osc.run_pt_cleanup("test_db")
 
         self.osc.confirm.assert_called_once_with()
         self.assertEqual(4, self.osc.execute.call_count)
 
-    @patch('builtins.print')
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args',
-           new_callable=PropertyMock)
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args',
-           new_callable=PropertyMock)
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args',
-           new_callable=PropertyMock)
-    def test_show_conf(self, ddl_args_mock, pt_osc_args_mock, pt_osc_dry_run_args_mock, print_mock):
+    @patch("builtins.print")
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_dry_run_args",
+        new_callable=PropertyMock,
+    )
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.pt_osc_args",
+        new_callable=PropertyMock,
+    )
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args",
+        new_callable=PropertyMock,
+    )
+    def test_show_conf(
+        self, ddl_args_mock, pt_osc_args_mock, pt_osc_dry_run_args_mock, print_mock
+    ):
         """Test the methos used to show the conf."""
         self.osc.show_conf()
 
         self.assertEqual(10, print_mock.call_count)
 
-    @patch('sys.exit')
+    @patch("sys.exit")
     def test_change_database(self, exit_mock):
         """Test successful change of db."""
         connection = MagicMock()
         self.osc._conn = connection
 
-        new_db = 'test_db'
+        new_db = "test_db"
         connection.database = new_db
 
         self.osc.change_database(new_db)
@@ -447,13 +487,13 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         connection.change_database.assert_called_once_with(new_db)
         exit_mock.assert_not_called()
 
-    @patch('sys.exit')
+    @patch("sys.exit")
     def test_change_database_fail(self, exit_mock):
         """Test failed change of db."""
         connection = MagicMock()
         self.osc._conn = connection
 
-        new_db = 'test_db'
+        new_db = "test_db"
         self.osc.change_database(new_db)
         connection.change_database.assert_called_once_with(new_db)
         exit_mock.assert_called_once_with(1)
@@ -464,7 +504,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         connection = MagicMock()
         self.osc._conn = connection
 
-        connection.execute.return_value = {'numrows': 1}
+        connection.execute.return_value = {"numrows": 1}
 
         self.osc.check_collision()
 
@@ -476,7 +516,7 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         connection = MagicMock()
         self.osc._conn = connection
 
-        connection.execute.return_value = {'numrows': 0}
+        connection.execute.return_value = {"numrows": 0}
 
         self.osc.check_collision()
 
@@ -489,9 +529,9 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         self.osc.execute = MagicMock()
         self.conf.no_cleanup = True
         self.conf.analyze = True
-        self.osc._ddlrep = ['somehting']
+        self.osc._ddlrep = ["somehting"]
 
-        db = 'test_db'
+        db = "test_db"
         self.assertTrue(self.osc.run_percona(db))
 
         alter_call_list = (call(db, dry_run=True), call(db))
@@ -503,55 +543,59 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         """Test run_percona method with failed dry-run."""
         self.osc.run_pt_ost_alter = MagicMock(return_value=False)
 
-        self.assertFalse(self.osc.run_percona('test_db'))
+        self.assertFalse(self.osc.run_percona("test_db"))
 
-        self.osc.run_pt_ost_alter.assert_called_once_with('test_db', dry_run=True)
+        self.osc.run_pt_ost_alter.assert_called_once_with("test_db", dry_run=True)
 
     def test_run_percon_failed_run(self):
         """Test run_percona method with failed run."""
         self.osc.run_pt_ost_alter = MagicMock(side_effect=[True, False])
 
-        db = 'test_db'
+        db = "test_db"
         self.assertFalse(self.osc.run_percona(db))
 
         alter_call_list = (call(db, dry_run=True), call(db))
         self.osc.run_pt_ost_alter.assert_has_calls(alter_call_list)
 
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args',
-           new_callable=PropertyMock)
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args",
+        new_callable=PropertyMock,
+    )
     def test_run_ddl_with_ddl_method(self, ddl_args_mock):
         """Test run_ddl with the ddl method."""
         self.osc.execute = MagicMock(return_value=True)
-        table = 'table'
-        alter = 'alter'
+        table = "table"
+        alter = "alter"
         self.conf.table = table
         self.conf.altersql = alter
-        self.conf.method = 'ddl'
-        ddlargs = ['arg']
+        self.conf.method = "ddl"
+        ddlargs = ["arg"]
         ddl_args_mock.return_value = ddlargs
 
-        self.assertTrue(self.osc.run_ddl('test_db'))
+        self.assertTrue(self.osc.run_ddl("test_db"))
 
         expected_query = "alter table `{}` {}".format(table, alter)
-        self.osc.execute.assert_called_once_with(expected_query, ['arg'])
+        self.osc.execute.assert_called_once_with(expected_query, ["arg"])
 
-    @patch('wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args',
-           new_callable=PropertyMock)
+    @patch(
+        "wmfmariadbpy.cli_admin.osc_host.OnlineSchemaChanger.ddl_args",
+        new_callable=PropertyMock,
+    )
     def test_run_ddl_with_ddlonline_method(self, ddl_args_mock):
         """Test run_ddl with the ddlonline method."""
         self.osc.execute = MagicMock(return_value=False)
-        table = 'table'
-        alter = 'alter'
+        table = "table"
+        alter = "alter"
         self.conf.table = table
         self.conf.altersql = alter
-        self.conf.method = 'ddlonline'
-        ddlargs = ['arg']
+        self.conf.method = "ddlonline"
+        ddlargs = ["arg"]
         ddl_args_mock.return_value = ddlargs
 
-        self.assertFalse(self.osc.run_ddl('test_db'))
+        self.assertFalse(self.osc.run_ddl("test_db"))
 
         expected_query = "alter online table `{}` {}".format(table, alter)
-        self.osc.execute.assert_called_once_with(expected_query, ['arg'])
+        self.osc.execute.assert_called_once_with(expected_query, ["arg"])
 
     def test_run_method_with_percona(self):
         """Test main run with the percona method."""
@@ -561,9 +605,9 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         self.osc.check_collision = MagicMock()
         self.osc.run_percona = MagicMock()
         self.osc.run_ddl = MagicMock()
-        self.conf.dblist = ['test_db1', 'test_db2']
+        self.conf.dblist = ["test_db1", "test_db2"]
 
-        self.conf.method = 'percona'
+        self.conf.method = "percona"
 
         self.osc.run()
 
@@ -585,9 +629,9 @@ class TestOnlineSchemaChanger(unittest.TestCase):
         self.osc.check_collision = MagicMock()
         self.osc.run_percona = MagicMock()
         self.osc.run_ddl = MagicMock()
-        self.conf.dblist = ['test_db1', 'test_db2']
+        self.conf.dblist = ["test_db1", "test_db2"]
 
-        self.conf.method = 'ddl'
+        self.conf.method = "ddl"
 
         self.osc.run()
 
@@ -607,7 +651,7 @@ class TestArgumentParsing(unittest.TestCase):
 
     def parse_args(self, args):
         """Call parse_args patching the arguments."""
-        with patch.object(sys, 'argv', args):
+        with patch.object(sys, "argv", args):
             return parse_args()
 
     def check_bad_args(self, args):
@@ -620,68 +664,110 @@ class TestArgumentParsing(unittest.TestCase):
     def test_missing_required_args(self):
         """Test errors with missing required args."""
         missing_required_args_list = [
-            ['osc_host'],
-            ['osc_host', '--host', 'localhost'],
-            ['osc_host', '--db', 'test'],
-            ['osc_host', '--table', 'test'],
-            ['osc_host', '--host', 'localhost', '--db', 'test', '--table', 'test'],
-            ['osc_host', '--db', 'test', '--table', 'test', 'sql'],
-            ['osc_host', '--host', 'localhost', '--table', 'test', 'sql'],
-            ['osc_host', '--host', 'localhost', '--db', 'test', 'sql'],
+            ["osc_host"],
+            ["osc_host", "--host", "localhost"],
+            ["osc_host", "--db", "test"],
+            ["osc_host", "--table", "test"],
+            ["osc_host", "--host", "localhost", "--db", "test", "--table", "test"],
+            ["osc_host", "--db", "test", "--table", "test", "sql"],
+            ["osc_host", "--host", "localhost", "--table", "test", "sql"],
+            ["osc_host", "--host", "localhost", "--db", "test", "sql"],
         ]
         for test_args in missing_required_args_list:
             self.check_bad_args(test_args)
 
     def test_invalid_gtid(self):
         """Test error with an invalid gtid."""
-        base_args = ['osc_host', '--host', 'localhost', '--db', 'test', '--table', 'test', 'sql']
-        invalid_gtid_list = ['invalid', '-1']
+        base_args = [
+            "osc_host",
+            "--host",
+            "localhost",
+            "--db",
+            "test",
+            "--table",
+            "test",
+            "sql",
+        ]
+        invalid_gtid_list = ["invalid", "-1"]
         for gtid in invalid_gtid_list:
-            test_args = base_args + ['--gtid_domain_id', gtid]
+            test_args = base_args + ["--gtid_domain_id", gtid]
             self.check_bad_args(test_args)
 
     def test_valid_gtid(self):
         """Test valid gtid are properly parsed."""
-        base_args = ['osc_host', '--host', 'localhost', '--db', 'test', '--table', 'test', 'sql']
-        gtid_list = ['1', '999']
+        base_args = [
+            "osc_host",
+            "--host",
+            "localhost",
+            "--db",
+            "test",
+            "--table",
+            "test",
+            "sql",
+        ]
+        gtid_list = ["1", "999"]
         for gtid in gtid_list:
-            test_args = base_args + ['--gtid_domain_id', gtid]
+            test_args = base_args + ["--gtid_domain_id", gtid]
             conf = self.parse_args(test_args)
             self.assertEqual(gtid, conf.gtid_domain_id)
 
     def test_sql_as_a_string(self):
         """Test the alter query is properly returned as a string."""
-        base_args = ['osc_host', '--host', 'localhost', '--db', 'test', '--table', 'test']
-        sql_args = ['add', 'column', 'test', 'int']
+        base_args = [
+            "osc_host",
+            "--host",
+            "localhost",
+            "--db",
+            "test",
+            "--table",
+            "test",
+        ]
+        sql_args = ["add", "column", "test", "int"]
         parsed = self.parse_args(base_args + sql_args)
 
-        expected_sql = ' '.join(sql_args)
+        expected_sql = " ".join(sql_args)
         self.assertEqual(expected_sql, parsed.altersql)
 
-    @patch('builtins.open')
+    @patch("builtins.open")
     def test_dblist(self, open_mock):
         """Test dblist file is properly read."""
         open_mock.return_value = MagicMock()
-        open_mock.return_value.__enter__.return_value = ['db1  \n', '  db2\n', '']
-        expected_dbs = ['db1', 'db2']
-        dblist_file = '.dblist'
+        open_mock.return_value.__enter__.return_value = ["db1  \n", "  db2\n", ""]
+        expected_dbs = ["db1", "db2"]
+        dblist_file = ".dblist"
 
-        args = ['osc_host', '--host', 'localhost', '--dblist', dblist_file,
-                '--table', 'test', 'sql']
+        args = [
+            "osc_host",
+            "--host",
+            "localhost",
+            "--dblist",
+            dblist_file,
+            "--table",
+            "test",
+            "sql",
+        ]
 
         conf = self.parse_args(args)
         self.assertListEqual(expected_dbs, conf.dblist)
         open_mock.assert_called_once_with(dblist_file)
 
-    @patch('builtins.open')
-    @patch('builtins.print')
+    @patch("builtins.open")
+    @patch("builtins.print")
     def test_dblist_open_fail(self, print_mock, open_mock):
         """Test dblist file open fail."""
         open_mock.side_effect = IOError()
-        dblist_file = '.dblist'
+        dblist_file = ".dblist"
 
-        args = ['osc_host', '--host', 'localhost', '--dblist', dblist_file,
-                '--table', 'test', 'sql']
+        args = [
+            "osc_host",
+            "--host",
+            "localhost",
+            "--dblist",
+            dblist_file,
+            "--table",
+            "test",
+            "sql",
+        ]
 
         with self.assertRaises(SystemExit) as exc:
             self.parse_args(args)

@@ -11,7 +11,7 @@ class TestCuminExecution(unittest.TestCase):
     def setUp(self):
         self.executor = CuminExecution()
 
-    @patch('wmfmariadbpy.RemoteExecution.CuminExecution.cumin.Config')
+    @patch("wmfmariadbpy.RemoteExecution.CuminExecution.cumin.Config")
     def test_config(self, config_mock):
         config_mock.return_value = MagicMock()
 
@@ -32,14 +32,16 @@ class TestCuminExecution(unittest.TestCase):
         orig_cmd = ["some", "command"]
         formatted_command = self.executor.format_command(orig_cmd)
 
-        self.assertEqual(' '.join(orig_cmd), formatted_command)
+        self.assertEqual(" ".join(orig_cmd), formatted_command)
 
-    @patch('wmfmariadbpy.RemoteExecution.CuminExecution.cumin.Config',
-           return_value={'transport': 'clustershell', 'default_backend': 'knownhosts'})
+    @patch(
+        "wmfmariadbpy.RemoteExecution.CuminExecution.cumin.Config",
+        return_value={"transport": "clustershell", "default_backend": "knownhosts"},
+    )
     def test_run_invalid_host(self, config_mock):
-        host = 'wrong_host.eqiad.wmnet'
-        command_return = self.executor.run(host, 'some command')
+        host = "wrong_host.eqiad.wmnet"
+        command_return = self.executor.run(host, "some command")
 
         self.assertEqual(command_return.returncode, 1)
         self.assertEqual(command_return.stdout, None)
-        self.assertEqual(command_return.stderr, 'host is wrong or does not match rules')
+        self.assertEqual(command_return.stderr, "host is wrong or does not match rules")
