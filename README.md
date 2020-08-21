@@ -5,7 +5,7 @@ Collection of Python classes and scripts to operate with MariaDB servers.
 Some dependencies are required in order to run the scripts and the tests. The easiest way to work is by using a virtualenv:
 
 ```
-tox --no-test
+tox --notest
 tox -e venv -- <some command>
 ```
 
@@ -43,6 +43,24 @@ To check the code style compliance:
 
 ```
 tox -e flake8
+```
+
+To check if the 'black' formatter would make changes:
+
+```
+tox -e black
+```
+
+To see what changes it would make:
+
+```
+tox -e black -- --diff
+```
+
+## Format the code with 'black'
+
+```
+tox -e blackify
 ```
 
 ## Execution
