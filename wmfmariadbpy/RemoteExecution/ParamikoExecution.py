@@ -2,7 +2,7 @@
 from wmfmariadbpy.RemoteExecution.RemoteExecution import RemoteExecution, CommandReturn
 
 from multiprocessing import Process, Pipe
-import paramiko
+import paramiko  # type: ignore
 import shlex
 import time
 

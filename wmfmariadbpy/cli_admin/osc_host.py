@@ -17,24 +17,26 @@ import shutil
 import subprocess
 import sys
 
+from typing import List, Optional
+
 from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 
 class OnlineSchemaChanger(object):
     """Class to perform the online schema changes."""
 
-    def __init__(self, conf):
+    def __init__(self, conf) -> None:
         """Get the configuration."""
-        self.conf = conf
-        self._conn = None
-        self._osctool = ""
-        self._ptrep = []
-        self._ptargs = []
-        self._ptdrargs = []
-        self._ddlrep = []
-        self._ddlargs = []
+        self.conf = conf  # type: argparse.Namespace
+        self._conn = None  # type: Optional[WMFMariaDB]
+        self._osctool = ""  # type: str
+        self._ptrep = []  # type: List[str]
+        self._ptargs = []  # type: List[str]
+        self._ptdrargs = []  # type: List[str]
+        self._ddlrep = []  # type: List[str]
+        self._ddlargs = []  # type: List[str]
 
-    def __del__(self):
+    def __del__(self) -> None:
         """Tidy up before finishing."""
         if self._conn:
             self._conn.disconnect()
@@ -333,7 +335,7 @@ class OnlineSchemaChanger(object):
                 self.confirm()
 
 
-def parse_args():
+def parse_args() -> argparse.Namespace:
     """Parse the execution parameters and return an object with them."""
     parser = argparse.ArgumentParser()
 

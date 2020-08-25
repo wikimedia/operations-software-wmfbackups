@@ -1,8 +1,8 @@
 from multiprocessing import Pipe, Process
 import os
 
-import cumin
-from cumin import query, transport, transports
+import cumin  # type: ignore
+from cumin import query, transport, transports  # type: ignore
 
 from wmfmariadbpy.RemoteExecution.RemoteExecution import CommandReturn, RemoteExecution
 

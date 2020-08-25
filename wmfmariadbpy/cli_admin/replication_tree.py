@@ -18,9 +18,6 @@ COLOR_MAGENTA = "\033[95m"
 
 
 class Instance:
-    name = None
-    replicas = dict()
-
     def __init__(
         self,
         name,
