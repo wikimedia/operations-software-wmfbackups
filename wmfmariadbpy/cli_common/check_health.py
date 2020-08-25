@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
 import argparse
-from datetime import datetime
 import json
 import math
 import subprocess
 import sys
 import time
+from datetime import datetime
 
 from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 

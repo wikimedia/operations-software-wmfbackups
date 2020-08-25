@@ -1,8 +1,8 @@
 #!/usr/bin/python3
-from wmfmariadbpy.RemoteExecution.RemoteExecution import RemoteExecution
-from wmfmariadbpy.RemoteExecution.LocalExecution import LocalExecution
-
 import shlex
+
+from wmfmariadbpy.RemoteExecution.LocalExecution import LocalExecution
+from wmfmariadbpy.RemoteExecution.RemoteExecution import RemoteExecution
 
 
 class SSHExecution(RemoteExecution):

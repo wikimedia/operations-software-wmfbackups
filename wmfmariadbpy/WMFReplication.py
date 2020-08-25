@@ -1,11 +1,11 @@
 # WMFReplication.py
-from wmfmariadbpy.WMFMariaDB import WMFMariaDB
-
 import configparser
 import ipaddress
-from multiprocessing.pool import ThreadPool
 import socket
 import time
+from multiprocessing.pool import ThreadPool
+
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 
 class WMFReplication:

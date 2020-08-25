@@ -1,14 +1,14 @@
 import configparser
 import csv
-import os
 import glob
 import ipaddress
+import os
 import pwd
+import re
+import socket
 
 # requires python3-pymysql
 import pymysql
-import re
-import socket
 
 
 class WMFMariaDB:

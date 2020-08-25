@@ -1,5 +1,5 @@
-from multiprocessing import Pipe, Process
 import os
+from multiprocessing import Pipe, Process
 
 import cumin  # type: ignore
 from cumin import query, transport, transports  # type: ignore

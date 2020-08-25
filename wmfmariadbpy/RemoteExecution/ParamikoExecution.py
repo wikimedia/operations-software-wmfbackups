@@ -1,10 +1,11 @@
 #!/usr/bin/python3
-from wmfmariadbpy.RemoteExecution.RemoteExecution import RemoteExecution, CommandReturn
-
-from multiprocessing import Process, Pipe
-import paramiko  # type: ignore
 import shlex
 import time
+from multiprocessing import Pipe, Process
+
+import paramiko  # type: ignore
+
+from wmfmariadbpy.RemoteExecution.RemoteExecution import CommandReturn, RemoteExecution
 
 
 def run_subprocess(host, command, user, port, host_keys, input_pipe):

@@ -1,7 +1,7 @@
 #!/usr/bin/python3
-from wmfmariadbpy.RemoteExecution.RemoteExecution import RemoteExecution, CommandReturn
-
 import subprocess
+
+from wmfmariadbpy.RemoteExecution.RemoteExecution import CommandReturn, RemoteExecution
 
 
 class LocalExecution(RemoteExecution):

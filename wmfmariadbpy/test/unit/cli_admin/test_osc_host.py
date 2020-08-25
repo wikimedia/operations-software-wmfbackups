@@ -2,10 +2,9 @@
 import subprocess
 import sys
 import unittest
-from unittest.mock import patch, call, MagicMock, PropertyMock
+from unittest.mock import MagicMock, PropertyMock, call, patch
 
 from wmfmariadbpy.cli_admin.osc_host import OnlineSchemaChanger, parse_args
-
 from wmfmariadbpy.test.utils import hide_stderr
 
 

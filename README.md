@@ -45,22 +45,16 @@ To check the code style compliance:
 tox -e flake8
 ```
 
-To check if the 'black' formatter would make changes:
+To check if the formatters would make changes:
 
 ```
-tox -e black
+tox -e format
 ```
 
-To see what changes it would make:
+## Reformat the code with 'isort' and 'black'
 
 ```
-tox -e black -- --diff
-```
-
-## Format the code with 'black'
-
-```
-tox -e blackify
+tox -e reformat
 ```
 
 ## Execution

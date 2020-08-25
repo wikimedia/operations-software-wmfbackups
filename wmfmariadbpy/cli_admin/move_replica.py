@@ -1,10 +1,10 @@
 #!/usr/bin/python3
 
-from wmfmariadbpy.WMFReplication import WMFReplication
-from wmfmariadbpy.WMFMariaDB import WMFMariaDB
-
 import argparse
 import sys
+
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
+from wmfmariadbpy.WMFReplication import WMFReplication
 
 
 def handle_parameters():

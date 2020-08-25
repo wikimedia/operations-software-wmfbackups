@@ -1,12 +1,12 @@
 #!/usr/bin/python3
 
-from wmfmariadbpy.WMFReplication import WMFReplication
-from wmfmariadbpy.WMFMariaDB import WMFMariaDB
-
 import argparse
-from operator import attrgetter
 import sys
 import time
+from operator import attrgetter
+
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
+from wmfmariadbpy.WMFReplication import WMFReplication
 
 COLOR_UNDERLINE = "\033[4m"
 COLOR_NORMAL = "\033[0m"

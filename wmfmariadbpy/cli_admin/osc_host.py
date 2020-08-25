@@ -16,7 +16,6 @@ import re
 import shutil
 import subprocess
 import sys
-
 from typing import List, Optional
 
 from wmfmariadbpy.WMFMariaDB import WMFMariaDB

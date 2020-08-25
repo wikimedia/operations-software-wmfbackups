@@ -6,7 +6,6 @@ import re
 import socket
 import sys
 
-
 """
 mysql.py intends to be a wrapper around the mysql command line client,
 adapted to WMF cluster convenience -intended for its usage on command

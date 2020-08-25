@@ -1,10 +1,10 @@
 #!/usr/bin/python3
-from wmfmariadbpy.WMFMariaDB import WMFMariaDB
-
 import argparse
-from datetime import datetime
 import sys
+from datetime import datetime
 from multiprocessing.pool import ThreadPool
+
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 
 def parse_args():

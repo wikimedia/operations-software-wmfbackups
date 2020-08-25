@@ -1,15 +1,15 @@
 #!/usr/bin/python3
 
-from wmfmariadbpy.RemoteExecution.CuminExecution import (
-    CuminExecution as RemoteExecution,
-)
-from wmfmariadbpy.WMFReplication import WMFReplication
-from wmfmariadbpy.WMFMariaDB import WMFMariaDB
-
 import argparse
 import re
 import sys
 import time
+
+from wmfmariadbpy.RemoteExecution.CuminExecution import (
+    CuminExecution as RemoteExecution,
+)
+from wmfmariadbpy.WMFMariaDB import WMFMariaDB
+from wmfmariadbpy.WMFReplication import WMFReplication
 
 # Heartbeat execution line, expected to be found on all masters, and to be run after a master switch
 # Update if operations/puppet:modules/mariadb/manifests/heartbeat.pp changes
