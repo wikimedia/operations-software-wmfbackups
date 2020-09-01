@@ -38,7 +38,7 @@ class NullBackup:
         """
         return False
 
-    def errors_on_log(self, log_file):
+    def errors_on_log(self):
         """
         Returns true if there were errors on the log of the backup command. As a parameter,
         a string containing the full path of the log file.

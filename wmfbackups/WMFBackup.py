@@ -263,6 +263,12 @@ class WMFBackup:
                 stats.fail()
                 return 3
 
+        # Check log for errors
+        if backup.errors_on_log():
+            self.logger.error('Error log found at {}'.format(backup.log_file))
+            stats.fail()
+            return 4
+
         # Check medatada file exists and containg the finish date
         if backup.errors_on_metadata(backup_dir):
             self.logger.error('Incorrect metadata file')

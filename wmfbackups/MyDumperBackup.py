@@ -97,7 +97,8 @@ class MyDumperBackup(NullBackup):
         if ' CRITICAL ' in errors:
             return 3
 
-    def errors_on_log(self, log_file):
+    def errors_on_log(self):
+        log_file = self.backup.log_file
         try:
             with open(log_file, 'r') as output:
                 log = output.read()

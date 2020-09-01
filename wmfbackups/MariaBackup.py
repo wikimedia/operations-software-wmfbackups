@@ -76,7 +76,7 @@ class MariaBackup(NullBackup):
             return True
         return False
 
-    def errors_on_log(self, log_file):
+    def errors_on_log(self):
         return False
 
     def get_prepare_cmd(self, backup_dir):
