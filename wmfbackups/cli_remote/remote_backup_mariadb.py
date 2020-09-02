@@ -1,6 +1,8 @@
 #!/usr/bin/python3
 
-from wmfmariadbpy.CuminExecution import CuminExecution as RemoteExecution
+from wmfmariadbpy.RemoteExecution.CuminExecution import (
+    CuminExecution as RemoteExecution,
+)
 from wmfmariadbpy.WMFMariaDB import WMFMariaDB
 
 import datetime

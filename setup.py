@@ -14,9 +14,15 @@ setup(
     packages=['wmfbackups'],
     install_requires=['pymysql>=0.9.3',
                       'wmfmariadbpy'],  # this is supposed to be wmfmariadbpy>=0.5, but that doesn't exist yet
-    extras_require={'cumin': ['cumin']},
     entry_points={
         'console_scripts': [
+           # cli
+           'backup-mariadb = wmfbackups.cli.backup_mariadb:main',
+           'recover-dump = wmfbackups.cli.recover_dump:main',
+           # cli_remote
+           'remote-backup-mariadb = wmfbackups.cli_remote.remote_backup_mariadb:main',
+           # check
+           'check-mariadb-backups = wmfbackups.check.check_mariadb_backups:main'
         ]
     },
     test_suite='wmfbackups.test',

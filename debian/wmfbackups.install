@@ -1,0 +1,3 @@
+wmfbackups/cli/*.py usr/lib/python3/dist-packages/wmfbackups/cli
+usr/bin/backup-mariadb
+usr/bin/recover-dump

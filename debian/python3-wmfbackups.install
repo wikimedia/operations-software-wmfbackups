@@ -1,0 +1,7 @@
+wmfbackups/__init__.py usr/lib/python3/dist-packages/wmfbackups
+wmfbackups/WMFBackup.py usr/lib/python3/dist-packages/wmfbackups
+wmfbackups/NullBackup.py usr/lib/python3/dist-packages/wmfbackups
+wmfbackups/MyDumperBackup.py usr/lib/python3/dist-packages/wmfbackups
+wmfbackups/MariaBackup.py usr/lib/python3/dist-packages/wmfbackups
+wmfbackups/BackupStatistics.py usr/lib/python3/dist-packages/wmfbackups
+usr/lib/python3.*/dist-packages/wmfbackups*.egg-info usr/lib/python3/dist-packages

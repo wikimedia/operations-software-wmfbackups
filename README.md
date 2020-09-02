@@ -1,4 +1,4 @@
-Collection of Python classes and scripts to operate with MariaDB servers.
+Collection of Python classes and scripts to create and manage wmf database and other backups.
 
 ## Dependencies
 
@@ -11,7 +11,7 @@ tox -e venv -- <some command>
 
 ## Run tests
 
-Tests are located under *wmfmariadbpy/test*. They are split between unit and integration tests. To run unit tests:
+Tests are located under *wmfbackups/test*. They are split between unit and integration tests. To run unit tests:
 
 ```
 tox -e unit
@@ -22,7 +22,6 @@ tox -e unit
 In order to be able to to run the tests you'll need to be able to run the script localy. You'll need to have:
 * A *.my.cnf* file with the proper configuration
 * A MariaDB listening on localhost:3306
-* *pt-online-schema-change* script on your PATH
 
 Then:
 ```
@@ -45,21 +44,10 @@ To check the code style compliance:
 tox -e flake8
 ```
 
-To check if the formatters would make changes:
+## Packaging
+
+To create debian packages:
 
 ```
-tox -e format
-```
-
-## Reformat the code with 'isort' and 'black'
-
-```
-tox -e reformat
-```
-
-## Execution
-
-Only *osc_host.py* is included on the setup for now, so the rest of them can be run directly. As for *osc_host.py* the easiest is to run it via the virtualenv `venv`:
-```
-tox -e venv -- osc_host --method=ddl --host=localhost --db=test --table=test "add column test int"
+debuild -b -us -uc
 ```

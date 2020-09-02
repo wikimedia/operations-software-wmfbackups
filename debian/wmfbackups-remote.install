@@ -1,0 +1,2 @@
+wmfbackups/cli_remote/*.py usr/lib/python3/dist-packages/wmfbackups/cli_remote
+usr/bin/remote-backup-mariadb

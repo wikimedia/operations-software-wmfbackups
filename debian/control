@@ -1,0 +1,35 @@
+Source: wmfbackups
+Section: utils
+Priority: optional
+Maintainer: Jaime Crespo <jcrespo@wikimedia.org>
+Build-Depends: debhelper (>= 10), dh-python, python3-all-dev, python3-setuptools
+Standards-Version: 4.1.2
+Homepage: https://wikitech.wikimedia.org/wiki/MariaDB/Backups
+X-Python3-Version: >= 3.5
+
+Package: python3-wmfbackups
+Architecture: any
+Depends: ${python3:Depends}, python3-wmfmariadbpy
+Recommends: mariadb-backup | percona-xtrabackup | wmf-mariadb101 | wmf-mariadb104 , mydumper
+Description: Basic libraries to allow generation of MariaDB backups
+ This package contains the base libraries needed for the main wmf
+ backups command line utilities.
+
+Package: wmfbackups
+Architecture: any
+Depends: ${python3:Depends}, python3-wmfbackups
+Description: Script to generate and recover local backups of MariaDB instances
+ This package contains the main wmf backups utilities,
+ suitable for database hosts.
+
+Package: wmfbackups-remote
+Architecture: any
+Depends: ${python3:Depends}, python3-wmfmariadbpy, python3-wmfmariadbpy-remote, transferpy
+Description: Script to generate and recover remote backups of MariaDB instances
+ This package contains the utilities suitable for admin hosts.
+
+Package: wmfbackups-check
+Architecture: any
+Depends: ${python3:Depends}
+Description: Script to check remote backups of MariaDB from metadata
+ This package contains the utilities suitable for monitoring hosts.

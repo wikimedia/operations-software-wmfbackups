@@ -1,0 +1,2 @@
+wmfbackups/check/*.py usr/lib/python3/dist-packages/wmfmariadbpy/check
+usr/bin/check-mariadb-backups

@@ -1,0 +1,6 @@
+wmfbackups (0.1) buster; urgency=medium
+
+  * Initial packaging.
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Thu, 17 Sep 2020 10:23:14 -0200
+
