@@ -1,3 +1,0 @@
-extend-diff-ignore = "^([^/]*[.]egg-info/)"
-# Ignore .tox, .mypy_cache, etc.
-tar-ignore = '.*'

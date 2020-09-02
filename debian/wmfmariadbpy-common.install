@@ -1,2 +1,0 @@
-wmfmariadbpy/cli_common/*.py usr/lib/python3/dist-packages/wmfmariadbpy/cli_common
-usr/bin/db-check-health

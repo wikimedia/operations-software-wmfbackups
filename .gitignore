@@ -1,6 +1,5 @@
 .coverage
 /.idea/
-/.mypy_cache/
 /.pybuild/
 /.vscode/
 /*.egg-info
@@ -11,11 +10,6 @@
 /debian/*.substvars
 /debian/debhelper-build-stamp
 /debian/files
-/debian/python3-wmfmariadbpy/
-/debian/python3-wmfmariadbpy-remote/
 /debian/tmp/
-/debian/wmfmariadbpy-admin/
-/debian/wmfmariadbpy-common/
-/debian/wmfmariadbpy/
 /venv/
 __pycache__

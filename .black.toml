@@ -1,3 +1,0 @@
-[tool.black]
-target-version = ['py35']
-exclude = '''\.tox|wmfbackups'''

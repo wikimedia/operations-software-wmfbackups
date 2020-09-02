@@ -1,6 +1,6 @@
 [gerrit]
 host=gerrit.wikimedia.org
 port=29418
-project=operations/software/wmfmariadbpy.git
+project=operations/software/wmfbackups.git
 defaultbranch=master
 defaultrebase=0
