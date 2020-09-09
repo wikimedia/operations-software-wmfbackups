@@ -100,7 +100,7 @@ def parse_config_file(config_file):
     return config
 
 
-def get_transfer_cmd(config, using_port, path):
+def get_transfer_cmd(config, path, using_port=0):
     """
     returns a list with the command to run transfer.py with the given options
     """
@@ -188,7 +188,7 @@ def execute_remotely(host, local_command):
     return result.returncode, result.stdout, result.stderr
 
 
-def run_transfer(section, config, port):
+def run_transfer(section, config, port=0):
     """
     Executes transfer.py in mode xtrabackup, transfering the contents of a live mysql/mariadb
     server to the provisioning host
@@ -210,7 +210,7 @@ def run_transfer(section, config, port):
     # transfer mysql data
     logger.info('Running XtraBackup at {} and sending it to {}'.format(
         db_host + ':' + str(db_port), config['destination']))
-    cmd = get_transfer_cmd(config, port, path)
+    cmd = get_transfer_cmd(config, path, port)
     # ignore stdout, stderr, which can deadlock/overflow the buffer for xtrabackup
     # use asyncio to prevent the busy wait loop that Popen does (we don't need a quick response.
     # this should be a long-running process)
@@ -241,7 +241,7 @@ def prepare_backup(section, config):
     return returncode
 
 
-def run(section, config, port):
+def run(section, config, port=0):
     """
     Executes transfer and prepare (if transfer is correct) on the given section, with the
     given config
@@ -266,12 +266,10 @@ def main():
     config = parse_config_file(DEFAULT_CONFIG_FILE)
     result = dict()
     backup_pool = Pool(CONCURRENT_BACKUPS)
-    port = 4444
     sorted_config = sorted(config.items(),
                            key=lambda section: section[1].get('order', sys.maxsize))
     for section, section_config in sorted_config:
-        result[section] = backup_pool.apply_async(run, (section, section_config, port))
-        port += 1
+        result[section] = backup_pool.apply_async(run, (section, section_config))
     backup_pool.close()
     backup_pool.join()
 
