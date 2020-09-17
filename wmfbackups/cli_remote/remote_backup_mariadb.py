@@ -13,7 +13,7 @@ import subprocess
 import sys
 import yaml
 
-DEFAULT_CONFIG_FILE = '/etc/mysql/backups.cnf'
+DEFAULT_CONFIG_FILE = '/etc/wmfbackups/remote_backups.cnf'
 DEFAULT_THREADS = 16
 DEFAULT_BACKUP_TYPE = 'dump'
 CONCURRENT_BACKUPS = 2

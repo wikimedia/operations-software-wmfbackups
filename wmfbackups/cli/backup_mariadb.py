@@ -15,7 +15,7 @@ from multiprocessing.pool import ThreadPool
 import sys
 import yaml
 
-DEFAULT_CONFIG_FILE = '/etc/mysql/backups.cnf'
+DEFAULT_CONFIG_FILE = '/etc/wmfbackups/backups.cnf'
 DEFAULT_THREADS = 18
 DEFAULT_TYPE = 'dump'
 CONCURRENT_BACKUPS = 2
