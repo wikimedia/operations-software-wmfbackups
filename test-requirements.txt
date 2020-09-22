@@ -2,4 +2,4 @@ flake8
 nose
 coverage
 pylint
-git+https://gerrit.wikimedia.org/r/operations/software/wmfmariadbpy@3c0f83b7191a704ba15ba127e7d0d6fd6ecc9a52#egg=wmfmariadbpy
+git+https://gerrit.wikimedia.org/r/operations/software/wmfmariadbpy#egg=wmfmariadbpy
