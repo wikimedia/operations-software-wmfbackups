@@ -24,7 +24,7 @@ Description: Script to generate and recover local backups of MariaDB instances
 
 Package: wmfbackups-remote
 Architecture: any
-Depends: ${python3:Depends}, python3-yaml, python3-wmfmariadbpy>=0.5,
+Depends: ${python3:Depends}, python3-yaml, python3-wmfmariadbpy (>=0.5),
          python3-wmfmariadbpy-remote, transferpy
 Description: Script to generate and recover remote backups of MariaDB instances
  This package contains the utilities suitable for admin hosts.
