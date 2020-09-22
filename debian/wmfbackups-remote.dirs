@@ -1,1 +1,2 @@
 etc/wmfbackups
+var/lib/mariadb-backups

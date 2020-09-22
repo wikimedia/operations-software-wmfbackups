@@ -13,7 +13,7 @@ setup(
     url="https://phabricator.wikimedia.org/diffusion/OSWB/",
     packages=['wmfbackups'],
     install_requires=['pymysql>=0.9.3',
-                      'wmfmariadbpy'],  # this is supposed to be wmfmariadbpy>=0.5, but that doesn't exist yet
+                      'wmfmariadbpy>=0.5'],
     entry_points={
         'console_scripts': [
            # cli
