@@ -30,6 +30,6 @@ Description: Script to generate and recover remote backups of MariaDB instances
 
 Package: wmfbackups-check
 Architecture: any
-Depends: ${python3:Depends}
+Depends: ${python3:Depends}, python3-arrow, python3-pymysql
 Description: Script to check remote backups of MariaDB from metadata
  This package contains the utilities suitable for monitoring hosts.
