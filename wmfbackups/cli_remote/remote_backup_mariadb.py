@@ -134,7 +134,7 @@ def get_prepare_cmd(section, config):
     returns a list with the command to run backup prepare with the given options
     """
     cmd = ['/usr/bin/sudo', '--user', DUMP_USER]
-    cmd.extend(['/usr/bin/python3', '/usr/local/bin/backup_mariadb.py'])
+    cmd.extend(['backup-mariadb'])
     cmd.extend([section, '--type', config['type']])
     # snapshots have to be "only_postprocess"ed always
     if (config['type'] == 'snapshot'
