@@ -16,7 +16,6 @@ import yaml
 DEFAULT_CONFIG_FILE = '/etc/wmfbackups/remote_backups.cnf'
 DEFAULT_THREADS = 16
 DEFAULT_BACKUP_TYPE = 'dump'
-CONCURRENT_BACKUPS = 2
 DEFAULT_PORT = 3306
 DEFAULT_TRANSFER_DIR = '/srv/backups/snapshots/ongoing'
 DATE_FORMAT = '%Y-%m-%d--%H-%M-%S'
@@ -80,9 +79,6 @@ def parse_config_file(config_file):
     if len(manual_config) == 0:
         logger.error('No actual backup was configured to run, please add at least one section')
         sys.exit(2)
-    elif len(manual_config) > 1:
-        # Limit the threads only if there is more than 1 backup
-        default_options['threads'] = int(default_options['threads'] / CONCURRENT_BACKUPS)
     config = dict()
     for section, section_config in manual_config.items():
         # fill up sections with default configurations
@@ -100,6 +96,20 @@ def parse_config_file(config_file):
                 )
                 sys.exit(2)
     return config
+
+
+def group_config_by_destination(config):
+    """
+    Modifies read config and groups it on a new dictionary indexed by destination.
+    This optimizes for later better parallelization of how backups are scheduled.
+    Destinations (keys) are sorted for deterministic results.
+    """
+    grouped_config = dict()
+    for section, section_config in config.items():
+        if section_config['destination'] not in grouped_config.keys():
+            grouped_config[section_config['destination']] = dict()
+        grouped_config[section_config['destination']][section] = section_config
+    return grouped_config
 
 
 def get_transfer_cmd(config, path, using_port=0):
@@ -248,7 +258,6 @@ def run(section, config, port=0):
     Executes transfer and prepare (if transfer is correct) on the given section, with the
     given config
     """
-
     if (('only_postprocess' in config and config['only_postprocess'])
             or config['type'] != 'snapshot'):
         result = prepare_backup(section, config)
@@ -259,24 +268,49 @@ def run(section, config, port=0):
     return result
 
 
+def run_destination(destination, sections):
+    """
+    Runs all the backups for a particular destination and returns a dictionary
+    of return values by section
+    """
+    result = dict()
+    sorted_config = sorted(sections.items(),
+                           key=lambda section: section[1].get('order', sys.maxsize))
+    for section, section_config in sorted_config:
+        result[section] = run(section, section_config)
+    return result
+
+
 def main():
+    # logging
     logger = logging.basicConfig(
         stream=sys.stdout, level=logging.INFO,
         format='[%(asctime)s]: %(levelname)s - %(message)s', datefmt='%H:%M:%S'
     )
     logger = logging.getLogger('backup')
-    config = parse_config_file(DEFAULT_CONFIG_FILE)
-    result = dict()
-    backup_pool = Pool(CONCURRENT_BACKUPS)
-    sorted_config = sorted(config.items(),
-                           key=lambda section: section[1].get('order', sys.maxsize))
-    for section, section_config in sorted_config:
-        result[section] = backup_pool.apply_async(run, (section, section_config))
-    backup_pool.close()
-    backup_pool.join()
 
-    logger.info('Backup finished correctly')
-    sys.exit(result[max(result, key=lambda key: result[key].get())].get())
+    # reading configuration
+    config = group_config_by_destination(parse_config_file(DEFAULT_CONFIG_FILE))
+
+    destination_result = dict()
+    result = dict()
+
+    # parallel execution
+    destination_pool = Pool(len(config))
+    for destination, sections in sorted(config.items()):
+        destination_result[destination] = destination_pool.apply_async(run_destination, (destination, sections))
+    destination_pool.close()
+    destination_pool.join()
+
+    # results handling
+    for destination, result_list in destination_result.items():
+        result.update(result_list.get())
+    worst_exit_code = result[max(result, key=lambda key: result[key])]
+    if worst_exit_code == 0:
+        logger.info('Backup finished correctly')
+    else:
+        logger.error('Backup process completed, but some backups finished with error codes')
+    sys.exit(worst_exit_code)
 
 
 if __name__ == "__main__":
