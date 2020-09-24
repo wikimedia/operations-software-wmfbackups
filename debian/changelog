@@ -1,10 +1,17 @@
+wmfbackups (0.3+deb10u1) buster; urgency=medium
+
+  * Optimize schedule of remote backups
+  * Misc fixes
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Thu, 24 Sep 2020 08:49:35 +0200
+
 wmfbackups (0.2+deb10u1) buster; urgency=medium
 
   * Fix packaging issue and dependencies for wmfbackups-check
   * Fix backup-mariadb path from remote calling
   * Make package depend on wmfmariadbpy>=0.5
 
- -- Jaime Crespo <jynus@sangai.jynus.com>  Tue, 22 Sep 2020 12:57:52 +0200
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Tue, 22 Sep 2020 12:57:52 +0200
 wmfbackups (0.1) stretch; urgency=medium
 
   * Initial packaging.
