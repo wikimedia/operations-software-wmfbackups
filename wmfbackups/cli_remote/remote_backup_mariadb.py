@@ -3,7 +3,7 @@
 from wmfmariadbpy.RemoteExecution.CuminExecution import (
     CuminExecution as RemoteExecution,
 )
-from wmfmariadbpy.WMFMariaDB import WMFMariaDB
+import wmfmariadbpy.dbutil as dbutil
 
 import datetime
 from multiprocessing.pool import Pool
@@ -123,7 +123,7 @@ def get_transfer_cmd(config, path, using_port=0):
     if config.get('stop_slave', False):
         cmd.append('--stop-slave')
     port = int(config.get('port', DEFAULT_PORT))
-    socket = WMFMariaDB.get_socket_from_port(port)
+    socket = dbutil.get_socket_from_port(port)
     cmd.extend([config['host'] + ':' + socket])
     cmd.extend([config['destination'] + ':' + path])
 

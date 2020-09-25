@@ -8,7 +8,7 @@
 # command locally
 
 from wmfbackups.NullBackup import NullBackup
-from wmfmariadbpy.WMFMariaDB import WMFMariaDB
+import wmfmariadbpy.dbutil as dbutil
 import os
 import sys
 
@@ -30,8 +30,8 @@ class MariaBackup(NullBackup):
         output_dir = os.path.join(backup_dir, self.backup.dir_name)
         cmd.extend(['--target-dir', output_dir])
         port = int(self.config.get('port', DEFAULT_PORT))
-        datadir = WMFMariaDB.get_datadir_from_port(port)
-        socket = WMFMariaDB.get_socket_from_port(port)
+        datadir = dbutil.get_datadir_from_port(port)
+        socket = dbutil.get_socket_from_port(port)
         cmd.extend(['--datadir', datadir])
         cmd.extend(['--socket', socket])
         if 'regex' in self.config and self.config['regex'] is not None:
