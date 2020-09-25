@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "1a4aab51_8ce374f2",
+        "filename": "setup.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 16,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2020-09-25T14:36:09Z",
+      "side": 1,
+      "message": "Thanks for this, this will solve lots of issues!",
+      "range": {
+        "startLine": 16,
+        "startChar": 37,
+        "endLine": 16,
+        "endChar": 41
+      },
+      "revId": "7c0dc9b030e400a30719be5af82d4ef2817d8308",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    }
+  ]
+}
