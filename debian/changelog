@@ -1,3 +1,11 @@
+wmfbackups (0.4+deb10u1) buster; urgency=medium
+
+  * Move utility function dependencies to wmfbackups/util
+  * Prevent password logging when using remote backups
+  * Add new option stats-file to read passwords locally
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Tue, 24 Nov 2020 12:44:38 +0100
+
 wmfbackups (0.3+deb10u1) buster; urgency=medium
 
   * Optimize schedule of remote backups

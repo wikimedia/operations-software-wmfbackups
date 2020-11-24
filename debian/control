@@ -9,7 +9,7 @@ X-Python3-Version: >= 3.5
 
 Package: python3-wmfbackups
 Architecture: any
-Depends: ${python3:Depends}, python3-wmfmariadbpy
+Depends: ${python3:Depends}, python3-wmfmariadbpy (>=0.6)
 Recommends: mariadb-backup | percona-xtrabackup | wmf-mariadb101 | wmf-mariadb104 , mydumper
 Description: Basic libraries to allow generation of MariaDB backups
  This package contains the base libraries needed for the main wmf
@@ -24,7 +24,7 @@ Description: Script to generate and recover local backups of MariaDB instances
 
 Package: wmfbackups-remote
 Architecture: any
-Depends: ${python3:Depends}, python3-yaml, python3-wmfmariadbpy (>=0.5),
+Depends: ${python3:Depends}, python3-yaml, python3-wmfmariadbpy (>=0.6),
          python3-wmfbackups, python3-wmfmariadbpy-remote, transferpy
 Description: Script to generate and recover remote backups of MariaDB instances
  This package contains the utilities suitable for admin hosts.
