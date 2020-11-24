@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f3f5aad0_524e10e0",
+        "filename": "setup.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 17,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2020-11-24T14:12:38Z",
+      "side": 1,
+      "message": "Here",
+      "revId": "d7f50805d7a0d987e306213b4422d32175b36818",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    }
+  ]
+}
