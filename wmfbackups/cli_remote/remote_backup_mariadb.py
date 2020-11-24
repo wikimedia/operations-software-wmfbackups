@@ -55,7 +55,7 @@ def parse_config_file(config_file):
     """
     allowed_options = ['host', 'port', 'password', 'destination', 'rotate', 'retention',
                        'compress', 'archive', 'threads', 'statistics', 'only_postprocess',
-                       'type', 'stop_slave', 'order']
+                       'type', 'stop_slave', 'order', 'stats_file']
     logger = logging.getLogger('backup')
     try:
         read_config = yaml.load(open(config_file))
@@ -164,7 +164,9 @@ def get_prepare_cmd(section, config):
         cmd.append('--compress')
     if 'archive' in config and config['archive']:
         cmd.append('--archive')
-    if 'statistics' in config:
+    if 'stats_file' in config:
+        cmd.extend(['--stats-file', config['stats_file']])
+    elif 'statistics' in config:
         stats = config['statistics']
         if 'host' in stats:
             cmd.extend(['--stats-host', stats['host']])

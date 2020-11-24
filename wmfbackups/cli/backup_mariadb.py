@@ -30,6 +30,34 @@ DUMPNAME_FORMAT = 'dump.{0}.{1}'  # where 0 is the section and 1 the date
 SNAPNAME_FORMAT = 'snapshot.{0}.{1}'  # where 0 is the section and 1 the date
 
 
+def load_stats_file(file_path):
+    '''
+    Return a dictionary with the stat options on file_path yaml
+    The file must be in yaml format, and can have the following
+    keys (all optional except 'host'):
+
+    host: 'test1001.eqiad.wmnet'
+    user: 'testuser'
+    password: 'testpass'
+    database: 'testdb'
+
+    There should be no nesting in this file
+    '''
+    logger = logging.getLogger('backup')
+    try:
+        config_file = yaml.load(open(file_path))
+    except yaml.YAMLError:
+        logger.error('Error opening or parsing the YAML file {}'.format(file_path))
+        sys.exit(2)
+    except FileNotFoundError:
+        logger.error('File {} not found'.format(file_path))
+        sys.exit(2)
+    if not isinstance(config_file, dict) or 'host' not in config_file:
+        logger.error('Missing host key from from file {}'.format(file_path))
+        sys.exit(2)
+    return config_file
+
+
 def parse_options():
     parser = argparse.ArgumentParser(description=('Create a mysql/mariadb logical backup using '
                                                   'mydumper or a snapshot using mariabackup.'
@@ -104,8 +132,13 @@ def parse_options():
                         help=('Only backup tables matching this regular expression,'
                               'with format: database.table. Default: all tables'),
                         default=None)
+    parser.add_argument('--stats-file',
+                        help=('Separate file where the statistics options are '
+                              'defined. This option and stats-host are exclusive.'),
+                        default=None)
     parser.add_argument('--stats-host',
-                        help='Host where the statistics database is.',
+                        help=('Host where the statistics database is. This option '
+                              'and stats-file are exclusive'),
                         default=None)
     parser.add_argument('--stats-port',
                         type=int,
@@ -122,8 +155,12 @@ def parse_options():
                         help='MySQL schema that contains the statistics database.',
                         default=None)
     options = parser.parse_args().__dict__
+
+    # load stat options from stats_file path
+    if 'stats_file' in options and options['stats_file'] is not None:
+        options['statistics'] = load_stats_file(options['stats_file'])
     # nest --stats-X option into a hash 'statistics' if --stats-host is set and not null
-    if 'stats_host' in options and options['stats_host'] is not None:
+    elif 'stats_host' in options and options['stats_host'] is not None:
         statistics = dict()
         statistics['host'] = options['stats_host']
         del options['stats_host']
@@ -136,6 +173,7 @@ def parse_options():
         statistics['database'] = options['stats_database']
         del options['stats_database']
         options['statistics'] = statistics
+
     return options
 
 
@@ -180,10 +218,18 @@ def parse_config_file(config_path):
     if len(manual_config) > 1:
         # Limit the threads only if there is more than 1 backup
         default_options['threads'] = int(default_options['threads'] / CONCURRENT_BACKUPS)
+    # Load default statistics options from a separate file, if appropiate
+    if 'stats_file' in config_file and config_file['stats_file'] is not None:
+        default_options['statistics'] = load_stats_file(config_file['stats_file'])
+        del default_options['stats_file']
     config = dict()
     for section, section_config in manual_config.items():
-        # fill up sections with default configurations
         config[section] = section_config.copy()
+        # load non-default statistics section
+        if 'stats_file' in config[section] and config[section]['stats_file'] is not None:
+            config[section]['statistics'] = load_stats_file(config[section]['stats_file'])
+            del config[section]['stats_file']
+        # fill up sections with default configurations
         for default_key, default_value in default_options.items():
             if default_key not in config[section]:
                 config[section][default_key] = default_value
