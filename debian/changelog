@@ -1,3 +1,9 @@
+wmfbackups (0.4+deb10u2) buster; urgency=medium
+
+  * Fixed packaging bug
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Wed, 25 Nov 2020 12:24:46 +0100
+
 wmfbackups (0.4+deb10u1) buster; urgency=medium
 
   * Move utility function dependencies to wmfbackups/util
