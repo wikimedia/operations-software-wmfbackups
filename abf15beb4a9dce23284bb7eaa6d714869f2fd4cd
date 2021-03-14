@@ -1,0 +1,67 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "4ccde799_7d54aad5",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 3
+      },
+      "writtenOn": "2021-03-14T23:44:27Z",
+      "side": 1,
+      "message": "See https://www.mediawiki.org/wiki/Gerrit/Commit_message_guidelines on how to format your commit summary",
+      "range": {
+        "startLine": 7,
+        "startChar": 0,
+        "endLine": 7,
+        "endChar": 1
+      },
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "86da1893_52362d5e",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 181,
+      "author": {
+        "id": 3
+      },
+      "writtenOn": "2021-03-14T23:44:27Z",
+      "side": 1,
+      "message": "temporary variable doesn\u0027t add anything.\n\nJust do return datetime.now(timezone.utc).timestamp()",
+      "range": {
+        "startLine": 181,
+        "startChar": 4,
+        "endLine": 181,
+        "endChar": 26
+      },
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "ab1bb955_5e846cb4",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 181,
+      "author": {
+        "id": 3
+      },
+      "writtenOn": "2021-03-14T23:44:27Z",
+      "side": 1,
+      "message": "same here, just do return \"{} day(s) {} hour(s) {} minute(s) and {} second(s)\".format(t.day - 1, t.hour, t.minute, t.second)",
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    }
+  ]
+}
