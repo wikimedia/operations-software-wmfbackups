@@ -25,6 +25,29 @@
     },
     {
       "key": {
+        "uuid": "b70189de_66c9aa25",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 133,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2021-03-15T09:45:34Z",
+      "side": 1,
+      "message": "It is probably interesting to track the decompression (if run) and the recovery (myloader) parts independently, but @Marostegui should decide on that.",
+      "range": {
+        "startLine": 133,
+        "startChar": 4,
+        "endLine": 133,
+        "endChar": 39
+      },
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
         "uuid": "86da1893_52362d5e",
         "filename": "wmfbackups/cli/recover_dump.py",
         "patchSetId": 1
@@ -59,6 +82,23 @@
       "writtenOn": "2021-03-14T23:44:27Z",
       "side": 1,
       "message": "same here, just do return \"{} day(s) {} hour(s) {} minute(s) and {} second(s)\".format(t.day - 1, t.hour, t.minute, t.second)",
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "677f9cca_40066103",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 187,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2021-03-15T09:45:34Z",
+      "side": 1,
+      "message": "This is very arguable, but let\u0027s keep the main procedure \"clean\" and put all the accounting time inside recover_logical_dump.",
       "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": true
