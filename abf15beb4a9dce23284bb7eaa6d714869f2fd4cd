@@ -25,6 +25,30 @@
     },
     {
       "key": {
+        "uuid": "8f1a82d4_d38859bf",
+        "filename": "/COMMIT_MSG",
+        "patchSetId": 1
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-03-15T23:35:07Z",
+      "side": 1,
+      "message": "Didn\u0027t know about this, thanks for sharing it 😊 will add full details in the next patchset",
+      "parentUuid": "4ccde799_7d54aad5",
+      "range": {
+        "startLine": 7,
+        "startChar": 0,
+        "endLine": 7,
+        "endChar": 1
+      },
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "b70189de_66c9aa25",
         "filename": "wmfbackups/cli/recover_dump.py",
         "patchSetId": 1
@@ -36,6 +60,30 @@
       "writtenOn": "2021-03-15T09:45:34Z",
       "side": 1,
       "message": "It is probably interesting to track the decompression (if run) and the recovery (myloader) parts independently, but @Marostegui should decide on that.",
+      "range": {
+        "startLine": 133,
+        "startChar": 4,
+        "endLine": 133,
+        "endChar": 39
+      },
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "dd1a6c7d_bf70d4c8",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 133,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-03-15T23:35:07Z",
+      "side": 1,
+      "message": "Happy to do this.  I will see if there is a better way to do it (such as making the timer into a class or something similar). That way we can have two instances and just make function calls to it. It\u0027d make things a bit cleaner too. I\u0027ve put a comment in Phabricator regarding a Q relating to Decompression, please have a look when possible",
+      "parentUuid": "b70189de_66c9aa25",
       "range": {
         "startLine": 133,
         "startChar": 4,
@@ -68,6 +116,30 @@
       "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "35b5dcc1_7ec107ad",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 172,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-03-15T23:35:07Z",
+      "side": 1,
+      "message": "Sounds good, will make the changes in future patch, thanks",
+      "parentUuid": "f3a7ac12_04d7db36",
+      "range": {
+        "startLine": 172,
+        "startChar": 4,
+        "endLine": 172,
+        "endChar": 15
+      },
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
     },
     {
       "key": {
@@ -129,6 +201,48 @@
     },
     {
       "key": {
+        "uuid": "3eacf578_9daafb6c",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 181,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-03-15T23:35:07Z",
+      "side": 1,
+      "message": "Sounds good - will make the changes in future patch, thanks",
+      "parentUuid": "86da1893_52362d5e",
+      "range": {
+        "startLine": 181,
+        "startChar": 4,
+        "endLine": 181,
+        "endChar": 26
+      },
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
+        "uuid": "4564623a_4e9c5e25",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 181,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-03-15T23:35:07Z",
+      "side": 1,
+      "message": "No worries, sounds good - will make the changes in future patch",
+      "parentUuid": "e8ca0029_98b5f969",
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
+    },
+    {
+      "key": {
         "uuid": "677f9cca_40066103",
         "filename": "wmfbackups/cli/recover_dump.py",
         "patchSetId": 1
@@ -143,6 +257,24 @@
       "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
       "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "4929d150_75820f64",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 1
+      },
+      "lineNbr": 187,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-03-15T23:35:07Z",
+      "side": 1,
+      "message": "Sure, sounds reasonable to me. Happy to move this into the actual function.",
+      "parentUuid": "677f9cca_40066103",
+      "revId": "abf15beb4a9dce23284bb7eaa6d714869f2fd4cd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": false
     }
   ]
 }
