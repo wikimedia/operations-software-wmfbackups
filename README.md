@@ -51,3 +51,18 @@ To create debian packages:
 ```
 debuild -b -us -uc
 ```
+
+## Database creation
+
+To create the database objects and users to track/check the metadata:
+
+```
+mysql -e "CREATE DATABASE dbbackups DEFAULT CHARACTER SET utf8mb4 COLLATE utf8mb4_unicode_ci"
+mysql dbbackups < sql/dbbackups.sql
+# user to setup an icinga check
+mysql -e "CREATE USER checkuser IDENTIFIED BY 'password' WITH MAX_USER_CONNECTIONS 10; GRANT SELECT ON dbbackups.* TO checkuser"
+# user to update the backup metadata
+mysql -e "CREATE USER statsuser IDENTIFIED BY 'another_password'; GRANT SELECT, INSERT, UPDATE ON dbbackups.* TO statsuser"
+```
+
+Adapt your mysql connection properties, passwords, database name and user accounts, that you later will configure at /etc/wmfbackups/statistics.cnf and nagios options.
