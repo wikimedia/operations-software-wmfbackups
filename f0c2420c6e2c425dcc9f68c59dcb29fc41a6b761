@@ -1,0 +1,44 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "95da581e_ee934467",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 7
+      },
+      "lineNbr": 42,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2021-03-30T09:58:54Z",
+      "side": 1,
+      "message": "The first part of the function can be probably simplified by using a better regex or other parsing. It would be nice if it was more legible.\n\nThe other thing that would be nice is to add a list of test cases to validate the validating function, to check your work.",
+      "revId": "f0c2420c6e2c425dcc9f68c59dcb29fc41a6b761",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "56880e92_4c80d943",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 7
+      },
+      "lineNbr": 139,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2021-03-30T09:58:54Z",
+      "side": 1,
+      "message": "You are mixing parsing the whole string and validating the timestamp in a confusingly-named function. Better make the function only validating the date string.",
+      "range": {
+        "startLine": 139,
+        "startChar": 12,
+        "endLine": 139,
+        "endChar": 44
+      },
+      "revId": "f0c2420c6e2c425dcc9f68c59dcb29fc41a6b761",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    }
+  ]
+}

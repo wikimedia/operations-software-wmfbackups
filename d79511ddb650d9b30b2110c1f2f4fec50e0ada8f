@@ -1,0 +1,27 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "1cc37d49_cc050ab0",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 7
+      },
+      "lineNbr": 116,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2021-03-30T09:58:54Z",
+      "side": 0,
+      "message": "This is better if it is kept out of the loop. This was an existing issue, but better to fix it now.",
+      "range": {
+        "startLine": 116,
+        "startChar": 12,
+        "endLine": 116,
+        "endChar": 48
+      },
+      "revId": "d79511ddb650d9b30b2110c1f2f4fec50e0ada8f",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    }
+  ]
+}
