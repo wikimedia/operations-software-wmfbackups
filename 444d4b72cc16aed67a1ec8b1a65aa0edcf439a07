@@ -1,0 +1,72 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "40582861_da56626a",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 8
+      },
+      "lineNbr": 26,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-04-01T11:36:27Z",
+      "side": 1,
+      "message": "There is a whitespace between try and : \nRemove the whitespace",
+      "revId": "444d4b72cc16aed67a1ec8b1a65aa0edcf439a07",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "4bb9e8f5_941e6348",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 8
+      },
+      "lineNbr": 28,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-04-01T11:36:27Z",
+      "side": 1,
+      "message": "Same here, un-necessary whitespace between ValueError and :",
+      "revId": "444d4b72cc16aed67a1ec8b1a65aa0edcf439a07",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "3859a68a_590f84bc",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 8
+      },
+      "lineNbr": 30,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-04-01T11:36:27Z",
+      "side": 1,
+      "message": "Minor\nCan simply this into if (is_valid_datetime) instead of if (is_valid_datetime \u003d\u003d True)",
+      "revId": "444d4b72cc16aed67a1ec8b1a65aa0edcf439a07",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "f1ce8423_f1722dd3",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 8
+      },
+      "lineNbr": 135,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-04-01T11:36:27Z",
+      "side": 1,
+      "message": "Can simply this and write if (is_valid_datetime .. ) instead of if (is_valid_datetime \u003d\u003d True ..\nThey mean the same thing",
+      "revId": "444d4b72cc16aed67a1ec8b1a65aa0edcf439a07",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    }
+  ]
+}
