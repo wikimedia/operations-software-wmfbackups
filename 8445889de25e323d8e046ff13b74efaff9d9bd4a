@@ -1,0 +1,72 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "d865f959_8cfb0366",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 9
+      },
+      "lineNbr": 27,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-04-02T19:53:16Z",
+      "side": 1,
+      "message": "Flake8 E231 -- Missing space after , \nYou need to put a space after each comma",
+      "revId": "8445889de25e323d8e046ff13b74efaff9d9bd4a",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "e8f5d7b2_7b6241d9",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 9
+      },
+      "lineNbr": 34,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-04-02T19:53:16Z",
+      "side": 1,
+      "message": "E302 -- you need to leave two blank lines here",
+      "revId": "8445889de25e323d8e046ff13b74efaff9d9bd4a",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a03b2f45_9ba40297",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 9
+      },
+      "lineNbr": 116,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-04-02T19:53:16Z",
+      "side": 1,
+      "message": "E231 -- you need a space after each comma and each semicolon, please run tox -e flake8",
+      "revId": "8445889de25e323d8e046ff13b74efaff9d9bd4a",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "a86ab78a_5082c58a",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 9
+      },
+      "lineNbr": 133,
+      "author": {
+        "id": 9029
+      },
+      "writtenOn": "2021-04-02T19:53:16Z",
+      "side": 1,
+      "message": "E231",
+      "revId": "8445889de25e323d8e046ff13b74efaff9d9bd4a",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    }
+  ]
+}
