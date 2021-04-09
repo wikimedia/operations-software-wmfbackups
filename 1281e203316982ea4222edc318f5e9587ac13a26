@@ -1,0 +1,61 @@
+{
+  "comments": [
+    {
+      "key": {
+        "uuid": "f336f009_063c73f9",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 11
+      },
+      "lineNbr": 20,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2021-04-09T13:34:51Z",
+      "side": 1,
+      "message": "You can remove the FIXME now.",
+      "range": {
+        "startLine": 20,
+        "startChar": 0,
+        "endLine": 20,
+        "endChar": 59
+      },
+      "revId": "1281e203316982ea4222edc318f5e9587ac13a26",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "4084f3a7_e207df12",
+        "filename": "wmfbackups/cli/recover_dump.py",
+        "patchSetId": 11
+      },
+      "lineNbr": 33,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2021-04-09T13:34:51Z",
+      "side": 1,
+      "message": "Why not just express (compress) the 4 lines as:\n\n\"return is_valid_datetime\"\n\nMaybe I am missing something obvious? Less is more! :-D",
+      "revId": "1281e203316982ea4222edc318f5e9587ac13a26",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    },
+    {
+      "key": {
+        "uuid": "114a9208_c2257cfa",
+        "filename": "wmfbackups/test/unit/test_validate_datetime.py",
+        "patchSetId": 11
+      },
+      "lineNbr": 43,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2021-04-09T13:34:51Z",
+      "side": 1,
+      "message": "Thanks, that is exactly what I meant!",
+      "revId": "1281e203316982ea4222edc318f5e9587ac13a26",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951",
+      "unresolved": true
+    }
+  ]
+}
