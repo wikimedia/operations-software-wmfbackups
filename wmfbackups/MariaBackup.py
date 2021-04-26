@@ -19,6 +19,7 @@ class MariaBackup(NullBackup):
 
     xtrabackup_path = 'xtrabackup'
     xtrabackup_prepare_memory = '40G'
+    xtrabackup_open_files_limit = '200000'
 
     def get_backup_cmd(self, backup_dir):
         """
@@ -66,6 +67,7 @@ class MariaBackup(NullBackup):
         # TODO: Make the amount of memory configurable
         # WARNING: apparently, --innodb-buffer-pool-size fails sometimes
         cmd.extend(['--use-memory', self.xtrabackup_prepare_memory])
+        cmd.extend(['--open-files-limit', self.xtrabackup_open_files_limit])
 
         return cmd
 
