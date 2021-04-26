@@ -18,7 +18,7 @@ DEFAULT_PORT = 3306
 class MariaBackup(NullBackup):
 
     xtrabackup_path = 'xtrabackup'
-    xtrabackup_prepare_memory = '20G'
+    xtrabackup_prepare_memory = '40G'
 
     def get_backup_cmd(self, backup_dir):
         """
