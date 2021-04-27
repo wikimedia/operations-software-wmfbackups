@@ -1,3 +1,9 @@
+wmfbackups (0.5+deb10u2) buster; urgency=medium
+
+  * Fix xtrabackup issues with s3 T281094
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Tue, 27 Apr 2021 10:36:23 +0200
+
 wmfbackups (0.4+deb10u2) buster; urgency=medium
 
   * Fixed packaging bug
