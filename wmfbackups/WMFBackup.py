@@ -265,7 +265,7 @@ class WMFBackup:
 
         # Check log for errors
         if backup.errors_on_log():
-            self.logger.error('Error log found at {}'.format(backup.log_file))
+            self.logger.error('Error log found at {}'.format(self.log_file))
             stats.fail()
             return 4
 
