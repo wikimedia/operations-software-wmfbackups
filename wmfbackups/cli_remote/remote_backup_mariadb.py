@@ -231,7 +231,7 @@ def run_transfer(section, config, port=0):
     process = subprocess.Popen(cmd, stdout=subprocess.DEVNULL, stderr=subprocess.DEVNULL)
     returncode = subprocess.Popen.wait(process)
     if returncode != 0:
-        logger.error('Transfer failed!')
+        logger.error('Transfer failed for section {s} on host {h}:{p}!'.format(s=section, h=db_host, p=db_port))
         return (returncode, path)
 
     # chown dir to dump user
