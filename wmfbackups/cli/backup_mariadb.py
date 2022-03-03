@@ -45,7 +45,7 @@ def load_stats_file(file_path):
     '''
     logger = logging.getLogger('backup')
     try:
-        config_file = yaml.load(open(file_path))
+        config_file = yaml.load(open(file_path), yaml.SafeLoader)
     except yaml.YAMLError:
         logger.error('Error opening or parsing the YAML file {}'.format(file_path))
         sys.exit(2)
@@ -196,7 +196,7 @@ def parse_config_file(config_path):
     """
     logger = logging.getLogger('backup')
     try:
-        config_file = yaml.load(open(config_path))
+        config_file = yaml.load(open(config_path), yaml.SafeLoader)
     except yaml.YAMLError:
         logger.error('Error opening or parsing the YAML file {}'.format(config_path))
         return

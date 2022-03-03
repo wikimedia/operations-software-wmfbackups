@@ -58,7 +58,7 @@ def parse_config_file(config_file):
                        'type', 'stop_slave', 'order', 'stats_file']
     logger = logging.getLogger('backup')
     try:
-        read_config = yaml.load(open(config_file))
+        read_config = yaml.load(open(config_file), yaml.SafeLoader)
     except yaml.YAMLError:
         logger.error('Error opening or parsing the YAML file {}'.format(config_file))
         sys.exit(2)
