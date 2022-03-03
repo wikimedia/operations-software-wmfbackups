@@ -1,3 +1,12 @@
+wmfbackups (0.6+deb11u1) bullseye; urgency=medium
+
+  * Several bug fixes and quality of life fixes
+  * Clearer logging
+  * Fixes uncaught exception when there were errors on the log
+  * Bullseye support
+
+ -- jynus <jynus@sangai.jynus.com>  Tue, 01 Mar 2022 11:49:33 +0100
+
 wmfbackups (0.5+deb10u2) buster; urgency=medium
 
   * Fix xtrabackup issues with s3 T281094
