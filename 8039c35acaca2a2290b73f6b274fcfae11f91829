@@ -1,0 +1,38 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "ddd17698_d7365651",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 2
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-03-03T17:32:51Z",
+      "side": 1,
+      "message": "This tries to use wmfmariadbpy.dbutil.read_section_ports_list() but there are some issues there, see line from comment. Feedback welcome.",
+      "revId": "8039c35acaca2a2290b73f6b274fcfae11f91829",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "bf64ca19_b56f2185",
+        "filename": "wmfbackups/check/check_mariadb_backups.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 55,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-03-03T17:32:51Z",
+      "side": 1,
+      "message": "👀👀👀",
+      "revId": "8039c35acaca2a2290b73f6b274fcfae11f91829",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    }
+  ]
+}
