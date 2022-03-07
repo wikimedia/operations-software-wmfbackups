@@ -33,6 +33,24 @@
       "message": "👀👀👀",
       "revId": "8039c35acaca2a2290b73f6b274fcfae11f91829",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "4907aad2_21db8bdc",
+        "filename": "wmfbackups/check/check_mariadb_backups.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 55,
+      "author": {
+        "id": 8161
+      },
+      "writtenOn": "2022-03-07T13:30:27Z",
+      "side": 1,
+      "message": "Ahh. So, section_ports isn\u0027t designed for this, but you\u0027re right that we should have *something* that is. My suggestion is don\u0027t use section_ports for now, keep the hard-coded section list, and i\u0027ll work on something to properly address this in the next while. How does that sound?",
+      "parentUuid": "bf64ca19_b56f2185",
+      "revId": "8039c35acaca2a2290b73f6b274fcfae11f91829",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
     }
   ]
 }
