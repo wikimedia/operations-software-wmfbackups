@@ -86,6 +86,24 @@
       "parentUuid": "4907aad2_21db8bdc",
       "revId": "8039c35acaca2a2290b73f6b274fcfae11f91829",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "de681e15_2908bd88",
+        "filename": "wmfbackups/check/check_mariadb_backups.py",
+        "patchSetId": 2
+      },
+      "lineNbr": 55,
+      "author": {
+        "id": 8161
+      },
+      "writtenOn": "2022-03-07T13:36:39Z",
+      "side": 1,
+      "message": "https://phabricator.wikimedia.org/T303178 opened to track making this better.",
+      "parentUuid": "f2611dba_7d36fe6c",
+      "revId": "8039c35acaca2a2290b73f6b274fcfae11f91829",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
     }
   ]
 }
