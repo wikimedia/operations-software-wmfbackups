@@ -1,8 +1,3 @@
-from wmfbackups.BackupStatistics import DatabaseBackupStatistics, DisabledBackupStatistics
-from wmfbackups.NullBackup import NullBackup
-from wmfbackups.MariaBackup import MariaBackup
-from wmfbackups.MyDumperBackup import MyDumperBackup
-
 import re
 import datetime
 import logging
@@ -10,6 +5,11 @@ import os
 import subprocess
 import shutil
 import sys
+
+from wmfbackups.BackupStatistics import DatabaseBackupStatistics, DisabledBackupStatistics
+from wmfbackups.NullBackup import NullBackup, BackupException
+from wmfbackups.MariaBackup import MariaBackup
+from wmfbackups.MyDumperBackup import MyDumperBackup
 
 DEFAULT_BACKUP_PATH = '/srv/backups'
 ONGOING_BACKUP_DIR = 'ongoing'
@@ -53,13 +53,13 @@ class WMFBackup:
 
     def generate_file_name(self, backup_dir):
         formatted_date = datetime.datetime.now().strftime(DATE_FORMAT)
-        self.dir_name = '{}.{}.{}'.format(self.config['type'], self.name, formatted_date)
+        self.dir_name = f'{self.config.get("type")}.{self.name}.{formatted_date}'
         if self.config.get('compress', False):
             extension = '.tar.gz'
         else:
             extension = ''
         self.file_name = self.dir_name + extension
-        self.log_file = os.path.join(backup_dir, '{}_log.{}'.format(self.config['type'], self.name))
+        self.log_file = os.path.join(backup_dir, f'{self.config.get("type")}_log.{self.name}')
 
     def parse_backup_file(self):
         """
@@ -70,11 +70,11 @@ class WMFBackup:
         regex = r'.*/(([^/\.]+)\.([^/\.]+)\.\d\d\d\d-\d\d-\d\d--\d\d-\d\d-\d\d)/*$'
         result = re.match(regex, self.name)
         if not result or not os.path.isdir(self.name):
-            self.logger.error('{} is not a valid absolute path directory'.format(self.name))
+            self.logger.error('%s is not a valid absolute path directory', self.name)
             return None
         if result.group(2) != type:
-            msg = 'A {} backup was requested, but a {} dir was provided'
-            self.logger.error(msg.format(type, result.group(2)))
+            msg = 'A %s backup was requested, but a %s dir was provided'
+            self.logger.error(msg, type, result.group(2))
             return None
         backup_dir = os.path.normpath(os.path.join(self.name, '..'))  # /backups/ongoing
         self.name = result.group(3)  # section identifier e.g. 's1'
@@ -101,11 +101,11 @@ class WMFBackup:
                                                                                            name,
                                                                                            '']))]
         except FileNotFoundError:
-            self.logger.error('{} directory not found'.format(backup_dir))
+            self.logger.error('%s directory not found', backup_dir)
             return None
         if len(potential_files) != 1:
-            msg = 'Expecting 1 matching {} for {}, found {}'
-            self.logger.error(msg.format(type, name, len(potential_files)))
+            msg = 'Expecting 1 matching %s for %s, found %s'
+            self.logger.error(msg, type, name, len(potential_files))
             return None
         self.dir_name = potential_files[0]
         if self.config.get('compress', False):
@@ -113,7 +113,7 @@ class WMFBackup:
         else:
             extension = ''
         self.file_name = self.dir_name + extension
-        self.log_file = os.path.join(backup_dir, '{}_log.{}'.format(type, name))
+        self.log_file = os.path.join(backup_dir, f'{type}_log.{name}')
         return 0
 
     def os_rename(self, source, destination):
@@ -140,7 +140,7 @@ class WMFBackup:
             if match is None:
                 continue
             if name == match.group(1):
-                self.logger.debug('Archiving {}'.format(entry))
+                self.logger.debug('Archiving %s', entry)
                 path = os.path.join(source, entry)
                 result = self.os_rename(path, os.path.join(destination, entry))
                 if result != 0:
@@ -171,19 +171,20 @@ class WMFBackup:
                 continue
             timestamp = datetime.datetime.strptime(match.group(2), DATE_FORMAT)
             if (timestamp < (datetime.datetime.now() - datetime.timedelta(days=days)) and
-               timestamp > datetime.datetime(2018, 1, 1)):
-                self.logger.debug('purging backup {}'.format(path))
+                    timestamp > datetime.datetime(2018, 1, 1)):
+                self.logger.debug('purging backup %s', path)
                 try:
                     if os.path.isdir(path):
                         shutil.rmtree(path)
                     else:
                         os.remove(path)
                 except OSError as e:
-                    return e.code
+                    return e.errno
         return 0
 
     def tar_and_remove(self, source, name, files, compression=None):
-
+        """Create a tar with the given path and remove the original file or files
+           at the same time, to save space"""
         cmd = ['/bin/tar']
         tar_file = os.path.join(source, '{}'.format(name))
         cmd.extend(['--create', '--remove-files', '--file', tar_file, '--directory', source])
@@ -220,8 +221,8 @@ class WMFBackup:
             else:
                 self.find_backup_file(backup_dir)
             if self.file_name is None:
-                msg = 'Problem while trying to find the backup files at {}'
-                self.logger.error(msg.format(backup_dir))
+                msg = 'Problem while trying to find the backup files at %s'
+                self.logger.error(msg, backup_dir)
                 return 10
         else:
             self.generate_file_name(backup_dir)
@@ -234,7 +235,7 @@ class WMFBackup:
         elif type == 'null':
             backup = NullBackup(self.config, self)
         else:
-            self.logger.error('Unrecognized backup format: {}'.format(type))
+            self.logger.error('Unrecognized backup format: %s', type)
             return 11
 
         # get the backup command
@@ -265,7 +266,7 @@ class WMFBackup:
 
         # Check log for errors
         if backup.errors_on_log():
-            self.logger.error('Error log found at {}'.format(self.log_file))
+            self.logger.error('Error log found at %s', self.log_file)
             stats.fail()
             return 4
 
@@ -276,7 +277,12 @@ class WMFBackup:
             return 5
 
         # Backups seems ok, prepare it for recovery and cleanup
-        cmd = backup.get_prepare_cmd(backup_dir)
+        try:
+            cmd = backup.get_prepare_cmd(backup_dir)
+        except BackupException as ex:
+            self.logger.error(str(ex))
+            stats.fail()
+            return 13
         if cmd != '':
             self.logger.debug(cmd)
             process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
@@ -334,7 +340,7 @@ class WMFBackup:
         if 'type' not in config:
             self.config['type'] = DEFAULT_BACKUP_TYPE
         elif config['type'] not in SUPPORTED_BACKUP_TYPES:
-            self.logger.error('Unknown dump type {}'.format(config['type']))
+            self.logger.error('Unknown dump type: %s', config['type'])
             sys.exit(-1)
         if 'retention' not in config:
             self.config['retention'] = DEFAULT_RETENTION_DAYS

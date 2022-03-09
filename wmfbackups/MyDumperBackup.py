@@ -1,16 +1,24 @@
-# MyDumper Procedure
-# Generates a logical dump using mydumper, allowing fast parallel and
-# compressed copies of the database objects.
+"""
+MyDumper Procedure
 
-from wmfbackups.NullBackup import NullBackup
+Generates a logical dump using mydumper, allowing fast parallel and
+compressed copies of the database objects.
+"""
+
 from multiprocessing.pool import ThreadPool
 import os
+
+from wmfbackups.NullBackup import NullBackup
 
 DEFAULT_HOST = 'localhost'
 DEFAULT_PORT = 3306
 
 
 class MyDumperBackup(NullBackup):
+    """
+    Generate a given backup using mydumper, without requiring any post-prepare
+    actions.
+    """
 
     rows = 20000000
 
@@ -95,7 +103,8 @@ class MyDumperBackup(NullBackup):
     def errors_on_output(self, stdout, stderr):
         errors = stderr.decode("utf-8")
         if ' CRITICAL ' in errors:
-            return 3
+            return True
+        return False
 
     def errors_on_log(self):
         log_file = self.backup.log_file
@@ -106,6 +115,7 @@ class MyDumperBackup(NullBackup):
             return True
         if ' [ERROR] ' in log:
             return True
+        return False
 
     def errors_on_prepare(self, stdout, stderr):
         return False

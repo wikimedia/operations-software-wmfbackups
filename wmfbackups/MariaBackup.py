@@ -1,25 +1,77 @@
-# MariaBackup Procedure
+"""
+MariaBackup Procedure
 
-# Generates a snapshots of a host by running mariabackup (xtrabackup compiled
-# with MariaDB libraries) and then checks the metadata file is seen as complete,
-# and it says it was completed correctly on the log
-# Note the "backup command" only works for local databases, if the database
-# is on a remote host, transfer.py should be used first and then use the prepare
-# command locally
+Generates a snapshots of a host by running mariabackup (xtrabackup compiled
+with MariaDB libraries) and then checks the metadata file is seen as complete,
+and it says it was completed correctly on the log
+Note the "backup command" only works for local databases, if the database
+is on a remote host, transfer.py should be used first and then use the prepare
+command locally
+"""
 
-from wmfbackups.NullBackup import NullBackup
-import wmfmariadbpy.dbutil as dbutil
 import os
-import sys
+import re
+import subprocess
+
+import wmfmariadbpy.dbutil as dbutil
+from wmfbackups.NullBackup import NullBackup, BackupException
 
 DEFAULT_PORT = 3306
+SERVER_VERSION_REGEX = r'(\d+\.\d+)\.(\d+)(\-([^\s]+))?'
+
+
+class XtrabackupError(BackupException):
+    """Used to raise errors related to xtrabackup execution"""
 
 
 class MariaBackup(NullBackup):
+    """Implements NullBackup by allowing backup generation and preparation
+       with mariabackup, while using the default xtrabackup executable on path"""
 
     xtrabackup_path = 'xtrabackup'
     xtrabackup_prepare_memory = '40G'
     xtrabackup_open_files_limit = '200000'
+
+    def _get_xtrabackup_version(self):
+        """
+        Execute xtrabackup --version and return the server version it was
+        compiled against, as major version, minor version and vendor
+        """
+        cmd = [self.xtrabackup_path, '--version']
+        process = subprocess.Popen(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE)
+        _, err = process.communicate()  # xtrabackup returns version to stderr
+        if process.returncode != 0:
+            raise XtrabackupError('--version failed to execute')
+        search = re.search(SERVER_VERSION_REGEX, err.decode())
+        if search is None:
+            raise XtrabackupError('--version didn\'t provide a recognizable version')
+        major_version = search.group(1)
+        try:
+            minor_version = int(search.group(2))
+        except ValueError:
+            raise XtrabackupError('--version didn\'t provide a numeric minor version')
+        vendor = search.group(4)
+        return {'major': major_version, 'minor': minor_version, 'vendor': vendor}
+
+    def _get_backup_source_server_version(self, backup_dir):
+        """
+        Open the xtrabackup_info file from the given backup dir, read it and
+        extract the server version
+        """
+        metadata_file = os.path.join(backup_dir, self.backup.dir_name, 'xtrabackup_info')
+        with open(metadata_file, 'r', errors='ignore') as metadata_file:
+            metadata = metadata_file.read()
+        search = re.search(f'server_version\\s*=\\s*({SERVER_VERSION_REGEX})', metadata)
+        if search is None or search.group(1) is None:
+            raise XtrabackupError('xtrabackup_info file does not exist or '
+                                  'it does not contain a server version')
+        major_version = search.group(2)
+        try:
+            minor_version = int(search.group(3))
+        except ValueError:
+            raise XtrabackupError('xtrabackup_info didn\'t provide a numeric minor version')
+        vendor = search.group(5)
+        return {'major': major_version, 'minor': minor_version, 'vendor': vendor}
 
     def get_backup_cmd(self, backup_dir):
         """
@@ -50,8 +102,8 @@ class MariaBackup(NullBackup):
         try:
             with open(metadata_file, 'r', errors='ignore') as metadata_file:
                 metadata = metadata_file.read()
-        except OSError:
-            return False
+        except (OSError, IOError):
+            return True
         if 'end_time = ' not in metadata:
             return True
         return False
@@ -74,7 +126,7 @@ class MariaBackup(NullBackup):
     def errors_on_output(self, stdout, stderr):
         errors = stderr.decode("utf-8")
         if 'completed OK!' not in errors:
-            sys.stderr.write(errors)
+            self.logger.error(errors)
             return True
         return False
 
@@ -85,6 +137,16 @@ class MariaBackup(NullBackup):
         """
         Once an xtrabackup backup has completed, run prepare so it is ready to be copied back
         """
+        # Fail hard under certain version missmatches
+        xtrabackup_version = self._get_xtrabackup_version()
+        backup_version = self._get_backup_source_server_version(backup_dir)
+        if (xtrabackup_version['vendor'] != backup_version['vendor'] or
+                xtrabackup_version['major'] != backup_version['major'] or
+                xtrabackup_version['minor'] < backup_version['minor']):
+            raise XtrabackupError(f'xtrabackup version mismatch- '
+                                  f'xtrabackup version: {xtrabackup_version}, '
+                                  f'backup version: {backup_version}')
+
         cmd = self._get_xtraback_prepare_cmd(backup_dir)
         return cmd
 
@@ -92,5 +154,6 @@ class MariaBackup(NullBackup):
         return self.errors_on_output(stdout, stderr)
 
     def archive_databases(self, source, threads):
-        # FIXME: Allow database archiving for xtrabackup
-        pass
+        """Archive xtrabackup-generated dbs (generating a tar bundle per database) -
+           NOT IMPLEMENTED - configuring it will do nothing"""
+        # FIXME: allow archiving databases for xtrabackup backup method

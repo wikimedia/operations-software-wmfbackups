@@ -1,11 +1,20 @@
-# Null Backup Procedure
+"""
+Null Backup Procedure
 
-# As the title suggests, this backup does nothing, it is a skeleton used
-# for debugging and other example purposes that, if run, does absolutely
-# nothing (it generates no backup files or reads from anywhere)
+As the title suggests, this backup does nothing, it is a skeleton used
+for debugging and other example purposes that, if run, does absolutely
+nothing (it generates no backup files or reads from anywhere)
+"""
+
+
+class BackupException(Exception):
+    """Base class for concrete exceptions on backup preparation & generation"""
+    pass
 
 
 class NullBackup:
+    """Base class "abstract/interface" to implement the different concrete
+       backup methods on top. On instancing, this does nothing"""
 
     config = dict()
 
