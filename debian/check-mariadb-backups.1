@@ -1,0 +1,65 @@
+.TH CHECK-MARIADB-BACKUPS: "1" "March 2022" "wmfbackups-check" "User Commands"
+.SH NAME
+check\-mariadb\-backups \- Icinga check for WMF backup freshness
+.SH DESCRIPTION
+.PP
+Icinga check that, given a section, a datacenter, and a backup type returns if
+if the corresponding backup is in a good status, or it is missing, old or has
+some other issue (such as a size anomaly, compared to previous backups of the
+same type) that requires research.
+.PP
+It uses nagios formating for results: exit code is 0 for OK, 1 for warning, 2
+for critical, 3 for unknown. On standard output it will output a brief message
+with the backup status or found problems.
+.SH SYNOPSIS
+.B check\-mariadb\-backups
+ [\-\-password PASSWORD] \fB\-\-database\fR DATABASE \fB\-\-section\fR SECTION \fB\-\-datacenter\fR {eqiad,codfw} [\fB\-\-type\fR {dump,snapshot}] [\fB\-\-freshness\fR FRESHNESS] [\fB\-\-min\-size\fR MIN_SIZE] [\fB\-\-warn\-size\-percentage\fR WARN_SIZE_PERCENTAGE] [\fB\-\-crit\-size\-percentage\fR CRIT_SIZE_PERCENTAGE]
+.SS "optional arguments:"
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+show this help message and exit
+.TP
+\fB\-\-host\fR HOST, \fB\-o\fR HOST
+Host with the database to connect to
+.TP
+\fB\-\-user\fR USER, \fB\-u\fR USER
+user used for the mysql connection
+.TP
+\fB\-\-password\fR PASSWORD, \fB\-w\fR PASSWORD
+Password used for the mysql connection
+.TP
+\fB\-\-database\fR DATABASE, \fB\-D\fR DATABASE
+Database where the backup metadata is stored
+.TP
+\fB\-\-section\fR SECTION, \fB\-s\fR SECTION
+Database section/shard to check. Must be on of: One of: s1, s2, s3, s4, s5, s6, s7, s8, s10, x1, pc1, pc2, pc3, es1, es2, es3, es4, es5, m1, m2, m3, m4, m5, tendril, zarcillo, mediabackupstemp, matomo, analytics_meta
+.TP
+\fB\-\-datacenter\fR {eqiad,codfw}, \fB\-d\fR {eqiad,codfw}
+Datacenter storage location of the backup to check.
+.TP
+\fB\-\-type\fR {dump,snapshot}, \fB\-t\fR {dump,snapshot}
+Type or method of backup: dump or snapshot
+.TP
+\fB\-\-freshness\fR FRESHNESS, \fB\-f\fR FRESHNESS
+Time, in seconds, of how old a backup can be before
+being considered outdated (default: 8 days)
+.TP
+\fB\-\-min\-size\fR MIN_SIZE, \fB\-c\fR MIN_SIZE
+Size, in bytes, below which the backup is considered
+failed in any case (default: 300 KB)
+.TP
+\fB\-\-warn\-size\-percentage\fR WARN_SIZE_PERCENTAGE, \fB\-p\fR WARN_SIZE_PERCENTAGE
+Percentage of size change compared to previous
+backups, above which a WARNING is produced (default:
+5%)
+.TP
+\fB\-\-crit\-size\-percentage\fR CRIT_SIZE_PERCENTAGE, \fB\-P\fR CRIT_SIZE_PERCENTAGE
+Percentage of size change compared to previous
+backups, above which a CRITICAL is produced (default:
+15%)
+.SH "SEE ALSO"
+Full documentation available at https://wikitech.wikimedia.org/wiki/MariaDB/Backups
+.SH AUTHOR
+Jaime Crespo
+.SH COPYRIGHT
+2018-2022, Jaime Crespo <jcrespo@wikimedia.org>, Wikimedia Foundation, Inc.

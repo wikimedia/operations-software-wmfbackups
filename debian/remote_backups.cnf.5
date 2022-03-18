@@ -1,0 +1,159 @@
+.TH REMOTE_BACKUPS.CNF: "5" "March 2022" "wmfbackups-remote" "File formats"
+.SH NAME
+remote_backups.cnf \- config for wmfbackups remote orchestration
+.SH DESCRIPTION
+.PP
+remote_backups.cnf is a YAML file with pairs of keys containing the
+configuration of backups executed when using
+.B remote-backup-mariadb
+It includes general config to apply to all backup jobs, and
+the individual config for each one. All the values set at the
+root level will be considered as
+defaults.
+Subkeys will be considered backup definitions and they can
+override global config.
+
+The main difference between backup.cnf and remote_backup.cnf is
+that remote_backup.cnf must contain a destination key where
+the backup is sent remotely using transfer.py (instead of
+generating the backup locally).
+
+.SH SYNOPSIS
+ [GLOBAL_CONFIG_1_KEY: GLOBAL_CONFIG_1_VALUE]
+ [GLOBAL_CONFIG_2_KEY: GLOBAL_CONFIG_2_VALUE]
+ [...: ...]
+ [SECTION_1:
+   [SECTION_1_CONFIG_KEY: SECTION_1_CONFIG_VALUE]
+   [...: ...]
+ [SECTION_2:
+   [SECTION_2_CONFIG_KEY: SECTION_2_CONFIG_VALUE]
+   [...: ...]
+
+.SS "valid config keys:"
+.TP
+\fBSECTION\fR
+Section name of the backup. E.g.: "s3", "tendril".
+It allow section-specific configs (subkeys), which will
+override the defaults or the general config for all sections.
+.TP
+\fBconfig_file\fR: CONFIG_FILE
+Config file to use. By default,
+\fI\,/etc/wmfbackups/backups.cnf\/\fP .
+.TP
+\fBhost\fR: HOST
+Host to generate the backup from. Default: localhost.
+.TP
+\fBport\fR: PORT
+Port to connect to. Default: 3306.
+.TP
+\fBuser\fR: USER
+User to connect for backup. Default: root.
+.TP
+\fBpassword\fR: PASSWORD
+Password used to connect. Default: empty password.
+.TP
+\fBthreads\fR: THREADS
+Number of threads to use for exporting. Default: 18
+concurrent threads.
+.TP
+\fBtype\fR: {dump,snapshot}
+Backup type: dump or snapshot. Default: dump
+.TP
+\fBonly_postprocess:\fR {true, false}
+If set to true, only postprocess and perform the metadata
+metrics gathering for the given section
+backup, skipping the actual backup. Default: Do the
+whole process.
+.TP
+\fBrotate:\fR {true, false}
+If set to true, run the rotation process, by moving it to
+the standard."latest" backup. Default: Do not rotate.
+.TP
+\fBretention\fR: RETENTION
+If rotate is set to true, purge backups of this section older
+than the given value, in days. Default: 18 days.
+.TP
+\fBbackup_dir\fR: BACKUP_DIR
+Directory where the backup will be stored. Default:
+\fI\,/srv/backups\/\fP.
+.TP
+\fBrows\fR: ROWS
+Max number of rows to dump per file. Default: 20000000
+.TP
+\fBarchive\fR: {true, false}
+If true, archive each db on its own tar file.
+.TP
+\fBcompress\fR: {true, false}
+If true, compress everything into a tar.gz. Default:
+Do not compress.
+.TP
+\fBregex\fR: REGEX
+Only backup tables matching this regular
+expression,with format: database.table. Default: all
+tables
+.TP
+\fBdestination\fR: DESTINATION
+Fully qualified name of the host where the backup will
+be sent to, using transfer.py
+.TP
+\fBorder\fR: ORDER
+Numerical order in which, from low to high, the backups
+will be executed.
+.TP
+\fBstats_file\fR: STATS_FILE
+Separate file where the statistics options are
+defined. This is so that passwords don't have to be
+provided on the command line (for remote backups)
+and are defined locally.
+This option and \fBstats_host\fR are mutually
+exclusive.
+The format of the stats file is also YAML, but only
+the following keys are allowed: \fBhost\fR,
+\fBuser\fR, \fBport\fR, \fBpassword\fR &
+\fBdatabase\fR. The host key is mandatory.
+Please note \fBthe file is relative to the destination host\fR
+not the remote host where remote-mariadb-backup is running.
+.TP
+\fBstats_host\fR: STATS_HOST
+Host where the statistics database is. This option and
+\fBstats_file\fR are mutually exclusive
+.TP
+\fBstats_port\fR: STATS_PORT
+Port where the statistics database is. Default: 3306
+.TP
+\fBstats_user\fR: STATS_USER
+User for the statistics database.
+.TP
+\fBstats_password\fR: STATS_PASSWORD
+Password used for the statistics database.
+.TP
+\fBstats_database\fR: STATS_DATABASE
+MySQL schema that contains the statistics database.
+.SH "EXAMPLES"
+ type: snapshot
+ compress: true
+ rotate: true
+ retention: 3
+ archive: false
+ sections:
+ s1:
+   host: 's1-master.eqiad.wmnet'
+   destination: dbprov1009.eqiad.wmnet
+ s2:
+   host: 's2-master.eqiad.wmnet'
+   destination: dbprov1008.eqiad.wmnet
+.TP
+In this example, a snapshot backup type has been defined as the global config for all sections. It also has set to return a compressed tarball that will be deleted in 3 days. No archival by default.
+.TP
+2 backups will be generated on each run, one for s1 (from the given host) and one for s2 (from a different host). s1 will be sent to dbprov1009 and s2 will be sent to dbprov1008.
+
+.SH "SEE ALSO"
+Full documentation available at https://wikitech.wikimedia.org/wiki/MariaDB/Backups
+See also related command:
+.B remote-backup-mariadb
+and similar configuration file (if wmfbackups is installed):
+.B backup.cnf
+.SH AUTHOR
+Jaime Crespo
+.SH COPYRIGHT
+2018-2022, Jaime Crespo <jcrespo@wikimedia.org>, Wikimedia Foundation, Inc.

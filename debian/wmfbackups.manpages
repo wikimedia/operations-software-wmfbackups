@@ -1,0 +1,3 @@
+debian/backup-mariadb.1
+debian/backups.cnf.5
+debian/recover-dump.1

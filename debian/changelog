@@ -1,3 +1,43 @@
+wmfbackups (0.7+deb11u1) bullseye; urgency=medium
+
+  * INCOMPATIBLE CHANGE: make the remte backups command line
+    now have a compulsory argument (sections). To recover the
+    previous behaviour, now one has to run remote-backup-mariadb all
+    This is to prevent accidental test runs by just running the
+    executable, without arguments.
+    This also allows rerunning only some backups easily, by running
+    'remote-backup-mariadb s1 s2 x1'
+  * INCOMPATIBLE CHANGE: return 0 (success error code) as long as
+    no config parsing or command line error, or any other unacaught
+    exception (such as control-c) argument happens, independently
+    of the exit status of the backups. This is because a single
+    backup failure caused the systemd timer running this process to
+    alarm, causing alert fatigue. There is already a check process
+    with proper time thresholds- focus on that and logging reading
+    for debugging.
+  * Unit tests for mariabackup & wmfbackups added
+  * Now remote backups are retried (only once) after the full batch
+    for that destination server is finished. This will prevent
+    backups failing for one-time flukes such as temporary network
+    issues or server unavailability
+  * A few improvements on logging: Now print the list of sections
+    that failed (even after retrying) at the end, for easier manual
+    log monitoring. This is in addition to existing db metadata
+    monitoring.
+  * Check that xtrabackup --prepare is using the same version (or a
+    compatible one) as the original source backup server. For now,
+    it will fail unless:
+     - Vendor (e.g. MariaDB) are the same
+     - Major version (e.g. 10.4) are the same
+     - xtrabackup minor are the same or higher than server
+  * Improve check_mariadb_backups.py by adding tests and a clearer
+    error output
+  * Fix warning on newer python versions that suggested to use yaml
+    safeloader to parse config files (which also will be safer)
+  * Now all command line executables and file formats have man pages
+
+ -- jynus <jcrespo@wikimedia.org>  Thu, 17 Mar 2022 11:03:16 +0100
+
 wmfbackups (0.6+deb11u1) bullseye; urgency=medium
 
   * Several bug fixes and quality of life fixes
@@ -5,7 +45,7 @@ wmfbackups (0.6+deb11u1) bullseye; urgency=medium
   * Fixes uncaught exception when there were errors on the log
   * Bullseye support
 
- -- jynus <jynus@sangai.jynus.com>  Tue, 01 Mar 2022 11:49:33 +0100
+ -- jynus <jcrespo@wikimedia.org>  Tue, 01 Mar 2022 11:49:33 +0100
 
 wmfbackups (0.5+deb10u2) buster; urgency=medium
 

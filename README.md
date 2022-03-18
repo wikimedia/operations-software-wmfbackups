@@ -49,6 +49,7 @@ tox -e flake8
 To create debian packages:
 
 ```
+dch  # to add new changelog entry
 debuild -b -us -uc
 ```
 

@@ -1,0 +1,30 @@
+.TH REMOTE-BACKUP-MARIADB "1" "March 2022" "wmfbackups-remote" "User Commands"
+.SH NAME
+remote-backup-mariadb \- execute remote mariadb backups
+.SH DESCRIPTION
+.PP
+Execute backups on remote hosts as configured on
+\fI\,/etc/wmfbackups/remote_backups.cnf\/\fP, mainly thought for xtrabackup automation.
+.SH SYNOPSIS
+.B remote-backup-mariadb
+[\-h] SECTION [SECTIONS ...]
+.SS "positional arguments:"
+.TP
+\fBSECTIONS\fR
+List of sections names (space separated) from the config file to backup. If all sections have to be backed up, use the alias
+"\fBall\fR" (without quotes). Error out if a section is given that is
+not on the config file.
+.SS "optional arguments:"
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+show this help message and exit
+.SH "SEE ALSO"
+Full documentation available at https://wikitech.wikimedia.org/wiki/MariaDB/Backups
+See also related command:
+.B backup-mariadb
+and config file:
+.B remote_backups.cnf
+.SH AUTHOR
+Jaime Crespo
+.SH COPYRIGHT
+2018-2022, Jaime Crespo <jcrespo@wikimedia.org>, Wikimedia Foundation, Inc.

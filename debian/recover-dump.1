@@ -1,0 +1,72 @@
+.TH RECOVER-DUMP: "1" "March 2022" "wmfbackups" "User Commands"
+.SH NAME
+recover-dump \- restore a given logical dump into a mariadb server
+.SH DESCRIPTION
+.PP
+recover-dump is a wrapper for myloader, except it sets sane defaults
+and performs the untaring of databases needed before the actual recovery,
+if the backup was generated with the 'archive' option (where individual
+dbs have been consolidated into single tar files to reduce the amount of
+total file objects.
+If no absolute path is given, only a section name, the latest backup is
+used for recover.
+.SH SYNOPSIS
+.B recover-dump
+[\-h] [\-\-config\-file CONFIG_FILE] [\-\-host HOST]
+[\-\-port PORT] [\-\-user USER] [\-\-password PASSWORD]
+[\-\-threads THREADS] [\-\-type {dump,snapshot}]
+[\-\-only\-postprocess] [\-\-rotate] [\-\-retention RETENTION]
+[\-\-backup\-dir BACKUP_DIR] [\-\-rows ROWS] [\-\-archive]
+[\-\-compress] [\-\-regex REGEX] [\-\-stats\-file STATS_FILE]
+[\-\-stats\-host STATS_HOST] [\-\-stats\-port STATS_PORT]
+[\-\-stats\-user STATS_USER]
+[\-\-stats\-password STATS_PASSWORD]
+[\-\-stats\-database STATS_DATABASE]
+[section]
+.SS "positional arguments:"
+.TP
+section
+Section name or absolute path of the directory to
+recover(e.g. "s3", "/srv/backups/archive/dump.s3.2022\-11\-12
+\fB\-\-19\-05\-35\fR")
+.SS "optional arguments:"
+.TP
+\fB\-h\fR, \fB\-\-help\fR
+show this help message and exit
+.TP
+\fB\-\-host\fR HOST
+Host (fully qualified name, hostname or ip of the database server) to
+recover to (default: localhost)
+.TP
+\fB\-\-port\fR PORT
+Port to recover to (default: 3306)
+.TP
+\fB\-\-threads\fR THREADS
+Maximum number of concurrent threads to use for recovery (default: 16)
+.TP
+\fB\-\-user\fR USER
+User to connect for recovery (default: root)
+.TP
+\fB\-\-password\fR PASSWORD
+Password to recover (default: empty password)
+.TP
+\fB\-\-socket\fR SOCKET
+Socket to recover to (default: mysql's default. Only used for localhost recoveries.
+.TP
+\fB\-\-database\fR DATABASE
+Only recover this database (default: recover all databases)
+.TP
+\fB\-\-replicate\fR
+If set, enable binlog on import, for imports to a primary server that
+have to be replicated (but makes load slower). By default, binlog
+writes are disabled.
+.SH "SEE ALSO"
+Full documentation available at https://wikitech.wikimedia.org/wiki/MariaDB/Backups
+See also related command:
+.B backup-mariadb
+and:
+.B myloader
+.SH AUTHOR
+Jaime Crespo
+.SH COPYRIGHT
+2018-2022, Jaime Crespo <jcrespo@wikimedia.org>, Wikimedia Foundation, Inc.
