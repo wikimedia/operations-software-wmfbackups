@@ -19,7 +19,7 @@ UNKNOWN = 3
 # TODO: Change this into a wmf api call- See conversation at:
 #       https://gerrit.wikimedia.org/r/c/operations/software/wmfbackups/+/767844
 #       (now tracked at T138562) why we cannot do this yet
-SECTIONS = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's10'
+SECTIONS = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's10',
             'x1', 'pc1', 'pc2', 'pc3',
             'es1', 'es2', 'es3', 'es4', 'es5',
             'm1', 'm2', 'm3', 'm4', 'm5', 'tendril', 'zarcillo',

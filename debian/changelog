@@ -1,3 +1,10 @@
+wmfbackups (0.7.1+deb11u1) bullseye; urgency=medium
+
+  * Fix bug on check maria backups where x1 was not a recognized
+    as a valid section due to a typo
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Mon, 28 Mar 2022 10:36:45 +0200
+
 wmfbackups (0.7+deb11u1) bullseye; urgency=medium
 
   * INCOMPATIBLE CHANGE: make the remte backups command line
