@@ -16,14 +16,6 @@ WARNING = 1
 CRITICAL = 2
 UNKNOWN = 3
 
-# TODO: Change this into a wmf api call- See conversation at:
-#       https://gerrit.wikimedia.org/r/c/operations/software/wmfbackups/+/767844
-#       (now tracked at T138562) why we cannot do this yet
-SECTIONS = ['s1', 's2', 's3', 's4', 's5', 's6', 's7', 's8', 's10',
-            'x1', 'pc1', 'pc2', 'pc3',
-            'es1', 'es2', 'es3', 'es4', 'es5',
-            'm1', 'm2', 'm3', 'm4', 'm5', 'tendril', 'zarcillo',
-            'mediabackupstemp', 'matomo', 'analytics_meta']
 DATACENTERS = ['eqiad', 'codfw']  # only check dbs on the main dcs
 TYPES = ['dump', 'snapshot']
 DEFAULT_FRESHNESS = 691200  # 8 days, in seconds
@@ -31,6 +23,14 @@ DEFAULT_MIN_SIZE = 300 * 1024  # size smaller than 300K is considered failed
 DEFAULT_WARN_SIZE_PERCENTAGE = 5  # size of previous ones minus or plus this percentage is weird
 DEFAULT_CRIT_SIZE_PERCENTAGE = 15  # size of previous ones minus or plus this percentage is a fail
 DEFAULT_SSL_CA = '/etc/ssl/certs/Puppet_Internal_CA.pem'  # CA path used for mysql TLS connection
+VALID_SECTION_CONFIG = '/etc/wmfbackups/valid_sections.txt'
+
+
+class BadConfigException(Exception):
+    """Internal exception raised when an error happens while trying to read the
+       valid sections configuration file: file is missing, bad file permissions,
+       or config doesn't return at least 1 valid section."""
+    pass
 
 
 class BadSectionException(Exception):
@@ -60,11 +60,28 @@ class DatabaseQueryException(Exception):
     pass
 
 
-def get_options():
+def get_valid_sections():
+    """Reads the list of valid section names/backup job names from a fixed
+       config file and loads it into memory for config validation."""
+    valid_sections = list()
+    # TODO: Change this into a wmf api call- See conversation at:
+    #       https://gerrit.wikimedia.org/r/c/operations/software/wmfbackups/+/767844
+    #       (now tracked at T138562) why we cannot do this yet
+    try:
+        with open(VALID_SECTION_CONFIG, 'r', encoding='utf8') as config_file:
+            for line in config_file:
+                if len(line.strip()) >= 1:
+                    valid_sections.append(line.strip())
+    except OSError as ex:
+        raise BadConfigException from ex
+    if len(valid_sections) < 1:
+        raise BadConfigException
+    return valid_sections
+
+
+def get_options(valid_sections):
     """Parses the commandline options and returns them as an object,
        also return a list of available sections"""
-    valid_sections = SECTIONS
-
     parser = argparse.ArgumentParser(description='Checks if backups for a '
                                                  'specific section are fresh.')
     parser.add_argument('--host', '-o', required=True,
@@ -100,16 +117,18 @@ def get_options():
                         type=float,
                         help='Percentage of size change compared to previous backups, '
                              'above which a CRITICAL is produced (default: 15%%)')
-
-    parsed_options = parser.parse_args()
+    try:
+        parsed_options = parser.parse_args()
+    except SystemExit:
+        sys.exit(UNKNOWN)
     setattr(parsed_options, 'valid_sections', valid_sections)
     return parsed_options
 
 
 def query_metadata_database(options):
-    '''Connect to and query the metadata database, return the data of the last 2 backups
+    """Connect to and query the metadata database, return the data of the last 2 backups
        for the given options. Return true and the data if successful, false and an error
-       message if failed.'''
+       message if failed."""
     try:
         db = pymysql.connect(host=options.host, user=options.user, password=options.password,
                              database=options.database, ssl={'ca': DEFAULT_SSL_CA})
@@ -283,7 +302,12 @@ def check_backup_database(options):
 
 def main():
     """Parse options, query db and print results in icinga format"""
-    options = get_options()
+    try:
+        valid_sections = get_valid_sections()
+    except BadConfigException:
+        print(f'Error while opening or reading the config file: {VALID_SECTION_CONFIG}')
+        sys.exit(UNKNOWN)
+    options = get_options(valid_sections)
     result = check_backup_database(options)
     print(result[1])
     sys.exit(result[0])

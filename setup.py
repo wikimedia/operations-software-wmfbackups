@@ -7,7 +7,7 @@ with open('README.md', 'r') as fh:
 setup(
     name='wmfbackups',
     description='wmfbackups',
-    version='0.7.1',
+    version='0.8',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://phabricator.wikimedia.org/diffusion/OSWB/",

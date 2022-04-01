@@ -5,7 +5,7 @@ from freezegun.api import FakeDatetime
 
 import datetime
 import unittest
-from unittest.mock import patch, MagicMock
+from unittest.mock import MagicMock, mock_open, patch
 
 
 class MockOptions:
@@ -49,6 +49,24 @@ class TestCheckMariaDBBackups(unittest.TestCase):
         self.assertEqual(check.format_size(1024 * 1024 * 1024 * 0.9), '0.9 GiB')
         self.assertEqual(check.format_size(1024 * 1024 * 1024 * 128), '128 GiB')
         self.assertEqual(check.format_size(1024 * 1024 * 1024 * 1024 * 7), '7168 GiB')
+
+    def test_get_valid_sections(self):
+        mock = mock_open(read_data="a1\nb2\nc3")
+        with patch('builtins.open', mock):
+            self.assertEqual(check.get_valid_sections(), ['a1', 'b2', 'c3'])
+        mock = mock_open(read_data="a1\n\n\nb2\nc3\n")
+        with patch('builtins.open', mock):
+            self.assertEqual(check.get_valid_sections(), ['a1', 'b2', 'c3'])
+        mock = mock_open(read_data="   \na1 \n  b2\n c3  \n \n")
+        with patch('builtins.open', mock):
+            self.assertEqual(check.get_valid_sections(), ['a1', 'b2', 'c3'])
+        mock = mock_open(read_data="")
+        self.assertRaises(check.BadConfigException, check.get_valid_sections)
+        mock = mock_open(read_data="\n \n")
+        self.assertRaises(check.BadConfigException, check.get_valid_sections)
+        mock = mock_open(read_data="a1\nb2\nc3")
+        mock_open.side_effect = IOError()
+        self.assertRaises(check.BadConfigException, check.get_valid_sections)
 
     @freeze_time('2022-01-03')
     def test_validate_input(self):

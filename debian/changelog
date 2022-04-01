@@ -1,3 +1,12 @@
+wmfbackups (0.8+deb11u1) bullseye; urgency=medium
+
+  * Change check-mariadb-backups to use a file (/etc/wmfbackups/
+    valid_sections.txt) to load the list of valid sections
+  * Create the /etc/wmfbackups directory during the wmfbackups-check
+    package install
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Mon, 04 Apr 2022 13:44:58 +0200
+
 wmfbackups (0.7.1+deb11u1) bullseye; urgency=medium
 
   * Fix bug on check maria backups where x1 was not a recognized
