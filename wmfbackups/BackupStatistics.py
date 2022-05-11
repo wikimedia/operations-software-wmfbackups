@@ -74,14 +74,14 @@ class DatabaseBackupStatistics(BackupStatistics):
     def find_backup_id(self, db):
         """
         Queries the metadata database to find an ongoing backup in the last
-        24 hours with the self properties (name, type, source & destination).
+        week with the self properties (name, type, source & destination).
         Returns its metadata backups.id value.
         """
         logger = logging.getLogger('backup')
         host = socket.getfqdn()
         query = ("SELECT id FROM backups WHERE name = %s and "
                  "status = 'ongoing' and type = %s and source = %s and "
-                 "host = %s and start_date > now() - INTERVAL 1 DAY")
+                 "host = %s and start_date > now() - INTERVAL 7 DAY")
         with db.cursor(pymysql.cursors.DictCursor) as cursor:
             try:
                 cursor.execute(query, (self.dump_name, self.type,
