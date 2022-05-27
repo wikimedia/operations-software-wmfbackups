@@ -32,6 +32,19 @@ class MariaBackup(NullBackup):
     xtrabackup_prepare_memory = '40G'
     xtrabackup_open_files_limit = '200000'
 
+    def uniformize_vendor_string(self, original_vendor):
+        """
+        Version string can be faked on config. In particular, it adds a '-log' string
+        depending if binary log is enabled or disabled.
+        """
+        if original_vendor is None or original_vendor in ['', 'log', 'debug', 'valgrind', 'embedded']:
+            return 'MySQL'
+        if original_vendor.startswith('MariaDB'):
+            return 'MariaDB'
+        if re.match(r'\d+([\.\-]\d+(\-.+)?)?', original_vendor):
+            return 'Percona Server'
+        return None
+
     def _get_xtrabackup_version(self):
         """
         Execute xtrabackup --version and return the server version it was
@@ -50,7 +63,7 @@ class MariaBackup(NullBackup):
             minor_version = int(search.group(2))
         except ValueError:
             raise XtrabackupError('--version didn\'t provide a numeric minor version')
-        vendor = search.group(4)
+        vendor = self.uniformize_vendor_string(search.group(4))
         return {'major': major_version, 'minor': minor_version, 'vendor': vendor}
 
     def _get_backup_source_server_version(self, backup_dir):
@@ -70,7 +83,7 @@ class MariaBackup(NullBackup):
             minor_version = int(search.group(3))
         except ValueError:
             raise XtrabackupError('xtrabackup_info didn\'t provide a numeric minor version')
-        vendor = search.group(5)
+        vendor = self.uniformize_vendor_string(search.group(5))
         return {'major': major_version, 'minor': minor_version, 'vendor': vendor}
 
     def get_backup_cmd(self, backup_dir):

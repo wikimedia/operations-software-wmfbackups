@@ -18,6 +18,22 @@ class TestMariaBackup(unittest.TestCase):
         self.backup.dir_name = 'test'
         self.maria_backup = MariaBackup({'type': 'null'}, self.backup)
 
+    def test_uniformize_vendor_string(self):
+        mb = self.maria_backup
+        self.assertEqual(mb.uniformize_vendor_string(None), 'MySQL')
+        self.assertEqual(mb.uniformize_vendor_string(''), 'MySQL')
+        self.assertEqual(mb.uniformize_vendor_string('log'), 'MySQL')
+        self.assertEqual(mb.uniformize_vendor_string('debug'), 'MySQL')
+        self.assertIsNone(mb.uniformize_vendor_string('MySQL'))
+        self.assertIsNone(mb.uniformize_vendor_string('Second Edition™'))
+        self.assertEqual(mb.uniformize_vendor_string('MariaDB'), 'MariaDB')
+        self.assertEqual(mb.uniformize_vendor_string('MariaDB-log'), 'MariaDB')
+        self.assertEqual(mb.uniformize_vendor_string('MariaDB-volans-edition'), 'MariaDB')
+        self.assertEqual(mb.uniformize_vendor_string('16'), 'Percona Server')
+        self.assertEqual(mb.uniformize_vendor_string('16.1'), 'Percona Server')
+        self.assertEqual(mb.uniformize_vendor_string('16-57'), 'Percona Server')
+        self.assertEqual(mb.uniformize_vendor_string('16-57-log'), 'Percona Server')
+
     @patch('subprocess.Popen')
     def test__get_xtrabackup_version(self, mock):
         """Test getting xtrabackup version"""
@@ -51,7 +67,7 @@ class TestMariaBackup(unittest.TestCase):
         mock.return_value = process_mock
         self.assertEqual(mb._get_xtrabackup_version(), {'major': '5.7',
                                                         'minor': 10,
-                                                        'vendor': None})
+                                                        'vendor': 'MySQL'})
 
         # failed execution
         process_mock = mock.Mock()
@@ -79,7 +95,7 @@ class TestMariaBackup(unittest.TestCase):
         """Test retrieving the server version from the xtrabackup_info file"""
         mb = self.maria_backup
 
-        # basic run
+        # mariadb basic run
         sample_xtrabackup_info = """
             tool_version = 2.4.9
             ibbackup_version = 2.4.9
@@ -93,7 +109,21 @@ class TestMariaBackup(unittest.TestCase):
                              {'major': '10.4',
                               'minor': 22,
                               'vendor': 'MariaDB'})
-        # MySQL run
+        # mariadb -log
+        sample_xtrabackup_info = """
+            tool_version = 2.4.9
+            ibbackup_version = 2.4.9
+            server_version = 10.4.22-MariaDB-log
+            start_time = 2022-02-15 13:08:12
+            end_time = 2018-02-15 15:18:58
+        """
+        mock = mock_open(read_data=sample_xtrabackup_info)
+        with patch('builtins.open', mock):
+            self.assertEqual(mb._get_backup_source_server_version(''),
+                             {'major': '10.4',
+                              'minor': 22,
+                              'vendor': 'MariaDB'})
+        # Percona server run
         sample_xtrabackup_info = """
             uuid = a6336c86-1b33-11e8-8de6-080027f3a5d8
             tool_name = xtrabackup
@@ -109,8 +139,21 @@ class TestMariaBackup(unittest.TestCase):
             self.assertEqual(mb._get_backup_source_server_version(''),
                              {'major': '5.7',
                               'minor': 19,
-                              'vendor': '17-57-log'})
-
+                              'vendor': 'Percona Server'})
+        # MySQL
+        sample_xtrabackup_info = """
+            tool_version = 2.4.9
+            ibbackup_version = 2.4.9
+            server_version = 8.0.29-log
+            start_time = 2022-02-15 13:08:12
+            end_time = 2018-02-15 15:18:58
+        """
+        mock = mock_open(read_data=sample_xtrabackup_info)
+        with patch('builtins.open', mock):
+            self.assertEqual(mb._get_backup_source_server_version(''),
+                             {'major': '8.0',
+                              'minor': 29,
+                              'vendor': 'MySQL'})
         # not found
         sample_xtrabackup_info = 'start_time = 2033-01-01 00:00:00'
         mock = mock_open(read_data=sample_xtrabackup_info)
