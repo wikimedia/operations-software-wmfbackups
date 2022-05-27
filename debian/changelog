@@ -1,3 +1,14 @@
+wmfbackups (0.8.2+deb11u1) bullseye; urgency=medium
+
+  * Fix bug before xtrabackup prepare (on version comparisons) due to
+    varying version string when comparing database versions with log
+    enabled and disabled.
+  * Make wmfbackups-check depend on the base python wmfbackups library.
+  * Add new file WMFMetrics for common metrics tasks (to be shared
+    later among icinga, prometheus and the dashboard).
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Tue, 31 May 2022 13:21:35 +0200
+
 wmfbackups (0.8.1+deb11u1) bullseye; urgency=medium
 
   * Fixed issue with statistics generation for long running backups:
