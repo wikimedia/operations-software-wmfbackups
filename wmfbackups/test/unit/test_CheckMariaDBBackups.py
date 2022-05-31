@@ -1,11 +1,11 @@
-import wmfbackups.check.check_mariadb_backups as check
+import datetime
 
 from freezegun import freeze_time
 from freezegun.api import FakeDatetime
-
-import datetime
 import unittest
-from unittest.mock import MagicMock, mock_open, patch
+from unittest.mock import patch, MagicMock
+
+import wmfbackups.check.check_mariadb_backups as check
 
 
 class MockOptions:
@@ -17,6 +17,10 @@ class MockOptions:
     crit_size_percentage = 30
     warn_size_percentage = 25
     min_size = 10000
+    user = 'root'
+    password = 'abc'
+    host = 'localhost'
+    database = 'my_database'
 
 
 class TestCheckMariaDBBackups(unittest.TestCase):
@@ -50,24 +54,6 @@ class TestCheckMariaDBBackups(unittest.TestCase):
         self.assertEqual(check.format_size(1024 * 1024 * 1024 * 128), '128 GiB')
         self.assertEqual(check.format_size(1024 * 1024 * 1024 * 1024 * 7), '7168 GiB')
 
-    def test_get_valid_sections(self):
-        mock = mock_open(read_data="a1\nb2\nc3")
-        with patch('builtins.open', mock):
-            self.assertEqual(check.get_valid_sections(), ['a1', 'b2', 'c3'])
-        mock = mock_open(read_data="a1\n\n\nb2\nc3\n")
-        with patch('builtins.open', mock):
-            self.assertEqual(check.get_valid_sections(), ['a1', 'b2', 'c3'])
-        mock = mock_open(read_data="   \na1 \n  b2\n c3  \n \n")
-        with patch('builtins.open', mock):
-            self.assertEqual(check.get_valid_sections(), ['a1', 'b2', 'c3'])
-        mock = mock_open(read_data="")
-        self.assertRaises(check.BadConfigException, check.get_valid_sections)
-        mock = mock_open(read_data="\n \n")
-        self.assertRaises(check.BadConfigException, check.get_valid_sections)
-        mock = mock_open(read_data="a1\nb2\nc3")
-        mock_open.side_effect = IOError()
-        self.assertRaises(check.BadConfigException, check.get_valid_sections)
-
     @freeze_time('2022-01-03')
     def test_validate_input(self):
         options = MockOptions()
@@ -99,8 +85,7 @@ class TestCheckMariaDBBackups(unittest.TestCase):
 
     @freeze_time('2022-01-03')
     def test_check_backup_database(self):
-        mock = MagicMock(return_value=self.test_data)
-        with patch('wmfbackups.check.check_mariadb_backups.query_metadata_database', mock):
+        with patch('wmfbackups.WMFMetrics.WMFMetrics.query_metadata_database', MagicMock(return_value=self.test_data)):
             options = MockOptions()
             # valid backup
             self.assertEqual(check.check_backup_database(options),
@@ -130,14 +115,12 @@ class TestCheckMariaDBBackups(unittest.TestCase):
                              (2, 'snapshot for g1 at eqiad (db1001, 2022-01-02 00:00:01): '
                                  '12 KiB is less than 29 KiB'))
         # No backups found
-        mock = MagicMock(return_value=[])
-        with patch('wmfbackups.check.check_mariadb_backups.query_metadata_database', mock):
+        with patch('wmfbackups.WMFMetrics.WMFMetrics.query_metadata_database', MagicMock(return_value=[])):
             options = MockOptions()
             self.assertEqual(check.check_backup_database(options),
                              (2, 'We could not find any completed snapshot for g1 at eqiad'))
         # Only 1 backup found
-        mock = MagicMock(return_value=[self.test_data[0]])
-        with patch('wmfbackups.check.check_mariadb_backups.query_metadata_database', mock):
+        with patch('wmfbackups.WMFMetrics.WMFMetrics.query_metadata_database', MagicMock(return_value=[self.test_data[0]])):
             options = MockOptions()
             self.assertEqual(check.check_backup_database(options),
                              (1, 'There is only 1 snapshot for g1 at eqiad (db1001) '

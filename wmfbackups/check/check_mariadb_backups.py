@@ -9,7 +9,10 @@ import datetime
 import sys
 
 import arrow
-import pymysql
+
+
+from wmfbackups.WMFMetrics import WMFMetrics, BadConfigException, DatabaseConnectionException, \
+                                  DatabaseQueryException, VALID_SECTION_CONFIG
 
 OK = 0
 WARNING = 1
@@ -22,15 +25,6 @@ DEFAULT_FRESHNESS = 691200  # 8 days, in seconds
 DEFAULT_MIN_SIZE = 300 * 1024  # size smaller than 300K is considered failed
 DEFAULT_WARN_SIZE_PERCENTAGE = 5  # size of previous ones minus or plus this percentage is weird
 DEFAULT_CRIT_SIZE_PERCENTAGE = 15  # size of previous ones minus or plus this percentage is a fail
-DEFAULT_SSL_CA = '/etc/ssl/certs/Puppet_Internal_CA.pem'  # CA path used for mysql TLS connection
-VALID_SECTION_CONFIG = '/etc/wmfbackups/valid_sections.txt'
-
-
-class BadConfigException(Exception):
-    """Internal exception raised when an error happens while trying to read the
-       valid sections configuration file: file is missing, bad file permissions,
-       or config doesn't return at least 1 valid section."""
-    pass
 
 
 class BadSectionException(Exception):
@@ -46,37 +40,6 @@ class BadDatacenterException(Exception):
 class BadTypeException(Exception):
     """Internal exception raised when trying to check an unknown backup type (not in list)"""
     pass
-
-
-class DatabaseConnectionException(Exception):
-    """Internal exception raised when connecting to the metadata database fails
-       (e.g. server is down or unreachable, grant issue, etc.)"""
-    pass
-
-
-class DatabaseQueryException(Exception):
-    """Internal exception raised when querying the metadata database fails (invalid query,
-       unexpected data structure, etc.)"""
-    pass
-
-
-def get_valid_sections():
-    """Reads the list of valid section names/backup job names from a fixed
-       config file and loads it into memory for config validation."""
-    valid_sections = list()
-    # TODO: Change this into a wmf api call- See conversation at:
-    #       https://gerrit.wikimedia.org/r/c/operations/software/wmfbackups/+/767844
-    #       (now tracked at T138562) why we cannot do this yet
-    try:
-        with open(VALID_SECTION_CONFIG, 'r', encoding='utf8') as config_file:
-            for line in config_file:
-                if len(line.strip()) >= 1:
-                    valid_sections.append(line.strip())
-    except OSError as ex:
-        raise BadConfigException from ex
-    if len(valid_sections) < 1:
-        raise BadConfigException
-    return valid_sections
 
 
 def get_options(valid_sections):
@@ -123,34 +86,6 @@ def get_options(valid_sections):
         sys.exit(UNKNOWN)
     setattr(parsed_options, 'valid_sections', valid_sections)
     return parsed_options
-
-
-def query_metadata_database(options):
-    """Connect to and query the metadata database, return the data of the last 2 backups
-       for the given options. Return true and the data if successful, false and an error
-       message if failed."""
-    try:
-        db = pymysql.connect(host=options.host, user=options.user, password=options.password,
-                             database=options.database, ssl={'ca': DEFAULT_SSL_CA})
-    except (pymysql.err.OperationalError, pymysql.err.InternalError) as ex:
-        raise DatabaseConnectionException from ex
-    with db.cursor(pymysql.cursors.DictCursor) as cursor:
-        query = """SELECT id, name, status, source, host, type, section, start_date,
-                          end_date, total_size
-                     FROM backups
-                    WHERE type = %s and
-                          section = %s and
-                          host like %s and
-                          status = 'finished' and
-                          end_date IS NOT NULL
-                 ORDER BY start_date DESC
-                    LIMIT 2"""
-        try:
-            cursor.execute(query, (options.type, options.section, f'%.{options.datacenter}.wmnet'))
-        except (pymysql.err.ProgrammingError, pymysql.err.InternalError) as ex:
-            raise DatabaseQueryException from ex
-        data = cursor.fetchall()
-    return data
 
 
 def validate_input(options):
@@ -251,14 +186,15 @@ def check_backup_database(options):
         return (UNKNOWN, f'Bad or unrecognized type: {options.type}')
     identifier = f'{type} for {section} at {datacenter}'
 
+    metrics = WMFMetrics(options)
     try:
-        data = query_metadata_database(options)
+        data = metrics.query_metadata_database(options)
     except DatabaseConnectionException:
-        return (False, f'We could not connect to the backup metadata database: '
-                       f'{options.host}/{options.database}')
+        return (UNKNOWN, f'We could not connect to the backup metadata database: '
+                         f'{options.host}/{options.database}')
     except DatabaseQueryException:
-        return (False, f'Error while querying the backup metadata database: '
-                       f'{options.host}/{options.database}')
+        return (UNKNOWN, f'Error while querying the backup metadata database: '
+                         f'{options.host}/{options.database}')
 
     # Did we get at least 1 sucessful backup?
     if len(data) < 1:
@@ -303,7 +239,7 @@ def check_backup_database(options):
 def main():
     """Parse options, query db and print results in icinga format"""
     try:
-        valid_sections = get_valid_sections()
+        valid_sections = WMFMetrics.get_valid_sections()
     except BadConfigException:
         print(f'Error while opening or reading the config file: {VALID_SECTION_CONFIG}')
         sys.exit(UNKNOWN)
