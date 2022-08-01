@@ -26,9 +26,6 @@ DEFAULT_USER = 'root'
 
 DEFAULT_BACKUP_DIR = '/srv/backups'
 
-DUMPNAME_FORMAT = 'dump.{0}.{1}'  # where 0 is the section and 1 the date
-SNAPNAME_FORMAT = 'snapshot.{0}.{1}'  # where 0 is the section and 1 the date
-
 
 def load_stats_file(file_path):
     '''
@@ -96,8 +93,8 @@ def parse_options():
                               'Default: {} concurrent threads.').format(DEFAULT_THREADS),
                         default=DEFAULT_THREADS)
     parser.add_argument('--type',
-                        choices=['dump', 'snapshot'],
-                        help='Backup type: dump or snapshot. Default: {}'.format(DEFAULT_TYPE),
+                        choices=['dump', 'snapshot', 'gitlab'],
+                        help='Backup type: dump, snapshot or gitlab. Default: {}'.format(DEFAULT_TYPE),
                         default=DEFAULT_TYPE)
     parser.add_argument('--only-postprocess',
                         action='store_true',

@@ -7,6 +7,7 @@ import shutil
 import sys
 
 from wmfbackups.BackupStatistics import DatabaseBackupStatistics, DisabledBackupStatistics
+from wmfbackups.GitLabBackup import GitLabBackup
 from wmfbackups.NullBackup import NullBackup, BackupException
 from wmfbackups.MariaBackup import MariaBackup
 from wmfbackups.MyDumperBackup import MyDumperBackup
@@ -20,7 +21,7 @@ DEFAULT_BACKUP_TYPE = 'dump'
 DEFAULT_BACKUP_THREADS = 18
 DEFAULT_PORT = 3306
 DEFAULT_RETENTION_DAYS = 18
-SUPPORTED_BACKUP_TYPES = ['dump', 'snapshot', 'null']
+SUPPORTED_BACKUP_TYPES = ['dump', 'snapshot', 'gitlab', 'null']
 
 
 class WMFBackup:
@@ -232,6 +233,8 @@ class WMFBackup:
             backup = MyDumperBackup(self.config, self)
         elif type == 'snapshot':
             backup = MariaBackup(self.config, self)
+        elif type == 'gitlab':
+            backup = GitLabBackup(self.config, self)
         elif type == 'null':
             backup = NullBackup(self.config, self)
         else:
