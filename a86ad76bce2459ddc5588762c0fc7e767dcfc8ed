@@ -1,0 +1,21 @@
+{
+  "comments": [
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "357880cf_0bf35e34",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-05T16:00:46Z",
+      "side": 1,
+      "message": "While this works, it requires more thinking about how to handle the different needs and precedence of the different settings (defaults, command line, file defaults and section config).\n\nI will for now revert the tests and keep using the old method until I can think of a clean solution to  evaluate all the needs.",
+      "revId": "a86ad76bce2459ddc5588762c0fc7e767dcfc8ed",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    }
+  ]
+}
