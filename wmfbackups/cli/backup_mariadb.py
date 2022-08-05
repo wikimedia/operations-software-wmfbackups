@@ -26,9 +26,6 @@ DEFAULT_USER = 'root'
 
 DEFAULT_BACKUP_DIR = '/srv/backups'
 
-DUMPNAME_FORMAT = 'dump.{0}.{1}'  # where 0 is the section and 1 the date
-SNAPNAME_FORMAT = 'snapshot.{0}.{1}'  # where 0 is the section and 1 the date
-
 
 def load_stats_file(file_path):
     '''
@@ -65,15 +62,6 @@ def parse_options():
                                                   'options are received from the command line '
                                                   'and non-interactive, where it reads from a '
                                                   'config file and performs several backups'))
-    parser.add_argument('section',
-                        help=('Section name of the backup. E.g.: "s3", "tendril". '
-                              'If section is set, --config-file is ignored. '
-                              'If it is empty, only config-file options will be used '
-                              'and other command line options will be ignored. '
-                              'For --only-postprocess work, you can also provide '
-                              'an absolute path of the directory'),
-                        nargs='?',
-                        default=None)
     parser.add_argument('--config-file',
                         help='Config file to use. By default, {} .'.format(DEFAULT_CONFIG_FILE),
                         default=DEFAULT_CONFIG_FILE)
@@ -154,6 +142,14 @@ def parse_options():
     parser.add_argument('--stats-database',
                         help='MySQL schema that contains the statistics database.',
                         default=None)
+    parser.add_argument('sections',
+                        help=('list of sections names (space separated) -from the config '
+                              'file- to backup. If all sections have to be backed up, '
+                              'use the alias "all" (without quotes). Error out if a section '
+                              'is given that is not on the config file.'),
+                        nargs='+',
+                        default=None)
+
     options = parser.parse_args().__dict__
 
     # load stat options from stats_file path
@@ -177,11 +173,14 @@ def parse_options():
     return options
 
 
-def parse_config_file(config_path):
+def parse_config_file(arguments):
     """
-    Reads the given config_path absolute path and returns a dictionary
-    of dictionaries with section names as keys, config names as subkeys
-    and values of that config as final values.
+    Reads the given absolute path from arguments['config_path'] and returns a
+    dictionary of dictionaries with section names as keys, config names as subkeys
+    and values of that config as final values, merged with the rest of the
+    arguments dictionary.
+    Per section configuration has precedence over command line, and command line
+    arguments have preference over file general defaults.
     Threads concurrency is limited based on the number of simultaneous backups.
     The file must be in yaml format, and it allows for default configurations:
 
@@ -195,16 +194,17 @@ def parse_config_file(config_path):
         archive: True
     """
     logger = logging.getLogger('backup')
+    config_path = arguments.get('config_path')
     try:
         config_file = yaml.load(open(config_path), yaml.SafeLoader)
     except yaml.YAMLError:
-        logger.error('Error opening or parsing the YAML file {}'.format(config_path))
-        return
+        logger.error(f'Error opening or parsing the YAML file {config_path}')
+        sys.exit(2)
     except FileNotFoundError:
-        logger.error('File {} not found'.format(config_path))
+        logger.error(f'File {config_path} not found')
         sys.exit(2)
     if not isinstance(config_file, dict) or 'sections' not in config_file:
-        logger.error('Error reading sections from file {}'.format(config_path))
+        logger.error(f'Error reading sections from file {config_path}')
         sys.exit(2)
 
     default_options = config_file.copy()
@@ -214,13 +214,19 @@ def parse_config_file(config_path):
 
     del default_options['sections']
 
+    # take into account command line defaults
+    for key, value in arguments.items():
+        if key not in ['config_file', 'sections']:
+            default_options[key] = value
+
+    # per section config has precedence over both command line and defaults
     manual_config = config_file['sections']
     if len(manual_config) > 1:
         # Limit the threads only if there is more than 1 backup
         default_options['threads'] = int(default_options['threads'] / CONCURRENT_BACKUPS)
     # Load default statistics options from a separate file, if appropiate
-    if 'stats_file' in config_file and config_file['stats_file'] is not None:
-        default_options['statistics'] = load_stats_file(config_file['stats_file'])
+    if default_options.get('stats_file'):
+        default_options['statistics'] = load_stats_file(default_options.get('stats_file'))
         del default_options['stats_file']
     config = dict()
     for section, section_config in manual_config.items():
@@ -233,6 +239,17 @@ def parse_config_file(config_path):
         for default_key, default_value in default_options.items():
             if default_key not in config[section]:
                 config[section][default_key] = default_value
+
+    # take into account command line selection
+    if 'all' not in arguments.sections:
+        # Hard fail if a section has been given that is not configured
+        for section in arguments.sections:
+            if section not in config:
+                logger.error('Section %s was given on command line, '
+                             'but wasn\'t found on config.', section)
+                sys.exit(1)
+        # remove sections not selected on command line from schedule
+        config = {c: config[c] for c in arguments.sections}
     return config
 
 
@@ -244,31 +261,26 @@ def main():
     logger = logging.getLogger('backup')
 
     options = parse_options()
-    if options['section'] is None:
-        # no section name, read the config file, validate it and
-        # execute it, including rotation of old dumps
-        config = parse_config_file(options['config_file'])
-        backup = dict()
-        result = dict()
-        backup_pool = ThreadPool(CONCURRENT_BACKUPS)
-        for section, section_config in config.items():
-            backup[section] = WMFBackup(section, section_config)
-            result[section] = backup_pool.apply_async(backup[section].run)
+    if options.get('sections') is None or len(options.get('sections')) <= 0:
+        sys.exit(3)
+    config = parse_config_file(options)
+    backup = dict()
+    result = dict()
+    backup_pool = ThreadPool(CONCURRENT_BACKUPS)
+    for section, section_config in config.items():
+        backup[section] = WMFBackup(section, section_config)
+        result[section] = backup_pool.apply_async(backup[section].run)
 
-        backup_pool.close()
-        backup_pool.join()
+    backup_pool.close()
+    backup_pool.join()
 
-        sys.exit(result[max(result, key=lambda key: result[key].get())].get())
-
+    if result[max(result, key=lambda key: result[key].get())].get() == 0:
+        logger.info('All %s requested backups finished succesfully', str(len(config)))
     else:
-        # a section name was given, only dump that one
-        backup = WMFBackup(options['section'], options)
-        result = backup.run()
-        if 0 == result:
-            logger.info('Backup {} generated correctly.'.format(options['section']))
-        else:
-            logger.critical('Error while performing backup of {}'.format(options['section']))
-        sys.exit(result)
+        backups_with_errors = [key for key, value in result.items() if value != 0]
+        logger.error('Some backups finished with errors: %s', ' '.join(backups_with_errors))
+
+    sys.exit(0)  # only error out on config or argument problem
 
 
 if __name__ == "__main__":
