@@ -16,6 +16,23 @@
       "message": "While this works, it requires more thinking about how to handle the different needs and precedence of the different settings (defaults, command line, file defaults and section config).\n\nI will for now revert the tests and keep using the old method until I can think of a clean solution to  evaluate all the needs.",
       "revId": "a86ad76bce2459ddc5588762c0fc7e767dcfc8ed",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "2899bd59_4e2b5c7a",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 3
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-08T11:14:42Z",
+      "side": 1,
+      "message": "I think the best solution is to implement 3 separate \"modes\":\n\n* --config-file\u003dignore, to use exclusively command line arguments\n* --config-file\u003d* (default: /etc/wmfbackups/backup.cnf) + section, for partial backups (command line arguments are ignored)\n* --config-file\u003d* (same default) + pseudosection \"all\", for running of all preconfigured backups (other command line arguments are ignored)",
+      "revId": "a86ad76bce2459ddc5588762c0fc7e767dcfc8ed",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
     }
   ]
 }
