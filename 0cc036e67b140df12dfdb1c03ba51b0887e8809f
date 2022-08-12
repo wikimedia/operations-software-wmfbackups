@@ -16,6 +16,46 @@
       "message": "Hey, some comments here- most are actually my fault for the initial commit (copy \u0026 paste). Let me know what you think of the others. Some, we can definitely delay for later, larger refactoring.",
       "revId": "0cc036e67b140df12dfdb1c03ba51b0887e8809f",
       "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": false,
+      "key": {
+        "uuid": "83311dd8_49d9b02c",
+        "filename": "/PATCHSET_LEVEL",
+        "patchSetId": 5
+      },
+      "lineNbr": 0,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-12T10:41:44Z",
+      "side": 1,
+      "message": "addendum for the latest update.",
+      "revId": "0cc036e67b140df12dfdb1c03ba51b0887e8809f",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "b5b6e9bd_4d4a82c9",
+        "filename": "wmfbackups/GitLabBackup.py",
+        "patchSetId": 5
+      },
+      "lineNbr": 16,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-12T10:41:44Z",
+      "side": 1,
+      "message": "Sadly we cannot do this as wmfbackups won\u0027t be able to call the constructor- dynamic options should go into the config dictionary.",
+      "range": {
+        "startLine": 16,
+        "startChar": 39,
+        "endLine": 16,
+        "endChar": 57
+      },
+      "revId": "0cc036e67b140df12dfdb1c03ba51b0887e8809f",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
     }
   ]
 }
