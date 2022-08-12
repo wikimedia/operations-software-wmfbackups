@@ -1,0 +1,142 @@
+{
+  "comments": [
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "34e4fe85_4ecb7787",
+        "filename": "wmfbackups/GitLabBackup.py",
+        "patchSetId": 3
+      },
+      "lineNbr": 7,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-12T10:39:12Z",
+      "side": 1,
+      "message": "Title needs update.",
+      "range": {
+        "startLine": 2,
+        "startChar": 0,
+        "endLine": 7,
+        "endChar": 3
+      },
+      "revId": "37027bcc678abaa20f03b3321ff264f205ed7acd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "fb217736_79eea2ae",
+        "filename": "wmfbackups/GitLabBackup.py",
+        "patchSetId": 3
+      },
+      "lineNbr": 12,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-12T10:39:12Z",
+      "side": 1,
+      "message": "Let\u0027s make it inherit from NullBackup, like the other classes.",
+      "range": {
+        "startLine": 12,
+        "startChar": 18,
+        "endLine": 12,
+        "endChar": 19
+      },
+      "revId": "37027bcc678abaa20f03b3321ff264f205ed7acd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "41cfafb2_285f86e0",
+        "filename": "wmfbackups/GitLabBackup.py",
+        "patchSetId": 3
+      },
+      "lineNbr": 21,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-12T10:39:12Z",
+      "side": 1,
+      "message": "Not needed once inheritance is setup.",
+      "range": {
+        "startLine": 15,
+        "startChar": 4,
+        "endLine": 21,
+        "endChar": 35
+      },
+      "revId": "37027bcc678abaa20f03b3321ff264f205ed7acd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "071455b6_105a9654",
+        "filename": "wmfbackups/GitLabBackup.py",
+        "patchSetId": 3
+      },
+      "lineNbr": 30,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-12T10:39:12Z",
+      "side": 1,
+      "message": "unrelated to this patch, but unsure if the original script should be on the same location as backups- e.g. it wouldn\u0027t be that weird to make the backup location partition impossible to execute commands?",
+      "range": {
+        "startLine": 30,
+        "startChar": 29,
+        "endLine": 30,
+        "endChar": 39
+      },
+      "revId": "37027bcc678abaa20f03b3321ff264f205ed7acd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "77fc1b67_0ffe1689",
+        "filename": "wmfbackups/GitLabBackup.py",
+        "patchSetId": 3
+      },
+      "lineNbr": 33,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-12T10:39:12Z",
+      "side": 1,
+      "message": "maybe we can add it to self.config, as a dictionary (self.config.get(\u0027gitlab_backup_type\u0027)? it will only require a small addition of that new config to the cli/config parsing script.",
+      "range": {
+        "startLine": 33,
+        "startChar": 16,
+        "endLine": 33,
+        "endChar": 17
+      },
+      "revId": "37027bcc678abaa20f03b3321ff264f205ed7acd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    },
+    {
+      "unresolved": true,
+      "key": {
+        "uuid": "2c86888a_37fdf231",
+        "filename": "wmfbackups/GitLabBackup.py",
+        "patchSetId": 3
+      },
+      "lineNbr": 43,
+      "author": {
+        "id": 2556
+      },
+      "writtenOn": "2022-08-12T10:39:12Z",
+      "side": 1,
+      "message": "You can remove the methods that won\u0027t apply- like prepare- they will be inherited with the defaults.",
+      "range": {
+        "startLine": 38,
+        "startChar": 4,
+        "endLine": 43,
+        "endChar": 17
+      },
+      "revId": "37027bcc678abaa20f03b3321ff264f205ed7acd",
+      "serverId": "e9e9afe9-4712-486d-8885-f54b72dd1951"
+    }
+  ]
+}
