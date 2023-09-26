@@ -208,11 +208,11 @@ def check_backup_database(options):
                           f'Most recent backup {last_backup_date}')
     # Check minimum size
     if size < min_size:
-        return(CRITICAL, f'{identifier} ({source}, {last_backup_date}): '
+        return (CRITICAL, f'{identifier} ({source}, {last_backup_date}): '
                          f'{humanized_size} is less than {humanized_min_size}')
     # warn in any case if there is only 1 backup (cannot compare sizes)
     if len(data) == 1:
-        return(WARNING, f'There is only 1 {identifier} ({source}) '
+        return (WARNING, f'There is only 1 {identifier} ({source}) '
                         f'taken on {last_backup_date} ({humanized_size})')
 
     (previous_size, humanized_previous_size, percentage_change,
@@ -220,12 +220,12 @@ def check_backup_database(options):
 
     # check size change
     if abs(percentage_change) > crit_size_percentage:
-        return(CRITICAL, f'Last {identifier} ({source}) '
+        return (CRITICAL, f'Last {identifier} ({source}) '
                          f'taken on {last_backup_date} is {humanized_size}, but '
                          f'the previous one was {humanized_previous_size}, '
                          f'a change of {humanized_percentage_change}')
     if abs(percentage_change) > warn_size_percentage:
-        return(WARNING, f'Last {identifier} ({source}) '
+        return (WARNING, f'Last {identifier} ({source}) '
                         f'taken on {last_backup_date} is {humanized_size}, but '
                         f'the previous one was {humanized_previous_size}, '
                         f'a change of {humanized_percentage_change}')
