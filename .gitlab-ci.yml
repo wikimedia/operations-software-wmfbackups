@@ -1,0 +1,9 @@
+stages:
+  - test
+test:
+  stage: test
+  image:
+    name: docker-registry.wikimedia.org/releng/tox-buster:latest
+    entrypoint: [""]
+  script:
+    - tox
