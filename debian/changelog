@@ -13,6 +13,13 @@ wmfbackups (0.8.4+deb11u1) bullseye; urgency=medium
 
  -- Jaime Crespo <jcrespo@wikimedia.org>  Fri, 24 Nov 2023 15:46:47 +0100
 
+wmfbackups (0.8.3+deb12u1) bookworm; urgency=medium
+
+  * Updated the package to make it buildable in bookworm.
+  * May contain some bugs
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Tue, 31 Oct 2023 13:16:48 +0100
+
 wmfbackups (0.8.3+deb11u1) bullseye; urgency=medium
 
   * Migrate stats config to a mysql ini file for flexibility
