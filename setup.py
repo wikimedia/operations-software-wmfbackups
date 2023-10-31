@@ -7,14 +7,14 @@ with open('README.md', 'r') as fh:
 setup(
     name='wmfbackups',
     description='wmfbackups',
-    version='0.8.2',
+    version='0.8.3',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://phabricator.wikimedia.org/diffusion/OSWB/",
     packages=['wmfbackups'],
     install_requires=['arrow',
                       'pymysql>=0.9.3',
-                      'wmfmariadbpy @ git+https://gerrit.wikimedia.org/r/operations/software/wmfmariadbpy@v0.6'],
+                      'wmfmariadbpy @ git+https://gitlab.wikimedia.org/repos/sre/wmfmariadbpy.git'],
     entry_points={
         'console_scripts': [
            # cli
