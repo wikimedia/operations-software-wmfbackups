@@ -15,10 +15,6 @@ performs several backups
 [\-\-only\-postprocess] [\-\-rotate] [\-\-retention RETENTION]
 [\-\-backup\-dir BACKUP_DIR] [\-\-rows ROWS] [\-\-archive]
 [\-\-compress] [\-\-regex REGEX] [\-\-stats\-file STATS_FILE]
-[\-\-stats\-host STATS_HOST] [\-\-stats\-port STATS_PORT]
-[\-\-stats\-user STATS_USER]
-[\-\-stats\-password STATS_PASSWORD]
-[\-\-stats\-database STATS_DATABASE]
 [section]
 .SS "positional arguments:"
 .TP
@@ -90,24 +86,9 @@ expression,with format: database.table. Default: all
 tables
 .TP
 \fB\-\-stats\-file\fR STATS_FILE
-Separate file where the statistics options are
-defined. This option and stats\-host are exclusive.
-.TP
-\fB\-\-stats\-host\fR STATS_HOST
-Host where the statistics database is. This option and
-stats\-file are exclusive
-.TP
-\fB\-\-stats\-port\fR STATS_PORT
-Port where the statistics database is. Default: 3306
-.TP
-\fB\-\-stats\-user\fR STATS_USER
-User for the statistics database.
-.TP
-\fB\-\-stats\-password\fR STATS_PASSWORD
-Password used for the statistics database.
-.TP
-\fB\-\-stats\-database\fR STATS_DATABASE
-MySQL schema that contains the statistics database.
+Separate ini mysql file where the statistics options are
+defined in a [client] section. If this option is not given,
+statistics will not be gathered.
 .SH "SEE ALSO"
 Full documentation available at https://wikitech.wikimedia.org/wiki/MariaDB/Backups
 See also related command:

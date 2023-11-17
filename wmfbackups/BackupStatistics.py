@@ -3,10 +3,8 @@ import os
 import pymysql
 import socket
 
-DEFAULT_HOST = 'localhost'
-DEFAULT_PORT = 3306
-DEFAULT_USER = 'root'
-TLS_TRUSTED_CA = '/etc/ssl/certs/Puppet_Internal_CA.pem'
+
+DEFAULT_STATS_FILE = '/etc/wmfbackups/statistics.ini'
 
 
 class BackupStatistics:
@@ -51,25 +49,17 @@ class DatabaseBackupStatistics(BackupStatistics):
     """
     Generates statistics and stored them on a MySQL/MariaDB database over TLS
     """
-    host = None
-    port = 3306
-    user = None
-    password = None
 
     def __init__(self, dir_name, section, type, source, backup_dir, config):
         self.dump_name = dir_name
         self.section = section
+        self.type = type
         if source.endswith(':3306'):
             self.source = source[:-5]
         else:
             self.source = source
         self.backup_dir = backup_dir
-        self.host = config.get('host', DEFAULT_HOST)
-        self.port = config.get('port', DEFAULT_PORT)
-        self.database = config['database']
-        self.user = config.get('user', DEFAULT_USER)
-        self.password = config['password']
-        self.type = type
+        self.config = config
 
     def find_backup_id(self, db):
         """
@@ -108,12 +98,12 @@ class DatabaseBackupStatistics(BackupStatistics):
         Returns True if it was successful, False otherwise.
         """
         logger = logging.getLogger('backup')
+        stats_file = self.config.get('stats_file', DEFAULT_STATS_FILE)
         try:
-            db = pymysql.connect(host=self.host, port=self.port, database=self.database,
-                                 user=self.user, password=self.password,
-                                 ssl={'ca': TLS_TRUSTED_CA})
+            db = pymysql.connect(read_default_file=stats_file)
         except (pymysql.err.OperationalError):
-            logger.exception('We could not connect to {} to store the stats'.format(self.host))
+            logger.exception('We could not connect to the stats db with config %s',
+                             stats_file)
             return False
         if status == 'ongoing':
             if self.section is None or self.source is None:
@@ -150,7 +140,7 @@ class DatabaseBackupStatistics(BackupStatistics):
                     return False
 
             if result != 1:
-                logger.error('We could not change the status of the current dump')
+                logger.error('We could not change the status of the current backup')
                 return False
             db.commit()
             return True
@@ -207,13 +197,13 @@ class DatabaseBackupStatistics(BackupStatistics):
         and stores it on the given statistics mysql database.
         """
         logger = logging.getLogger('backup')
+        stats_file = self.config.get('stats_file', DEFAULT_STATS_FILE)
         # Find the completed backup db entry
         try:
-            db = pymysql.connect(host=self.host, port=self.port, database=self.database,
-                                 user=self.user, password=self.password,
-                                 ssl={'ca': TLS_TRUSTED_CA})
+            db = pymysql.connect(read_default_file=stats_file)
         except (pymysql.err.OperationalError):
-            logger.exception('We could not connect to {} to store the stats'.format(self.host))
+            logger.exception('We could not connect to the stats db with the config %s',
+                             stats_file)
             return False
         backup_id = self.find_backup_id(db)
         if backup_id is None:

@@ -63,12 +63,7 @@ def parse_config_file(config_file, arguments):
     compress: True
     archive: False
     threads: 16
-    statistics:
-      host: 'db1115.eqiad.wmnet'
-      port: 3306
-      user: 'a_user'
-      password: 'a_password'
-      database: 'zarcillo'
+    stats_file: '/etc/wmfbackups/statistics.ini'
     sections:
       s1:
         host: 'db1139.eqiad.wmnet'
@@ -207,18 +202,6 @@ def get_prepare_cmd(section, config):
         cmd.append('--archive')
     if 'stats_file' in config:
         cmd.extend(['--stats-file', config['stats_file']])
-    elif 'statistics' in config:
-        stats = config['statistics']
-        if 'host' in stats:
-            cmd.extend(['--stats-host', stats['host']])
-        if 'port' in stats:
-            cmd.extend(['--stats-port', stats['port']])
-        if 'user' in stats:
-            cmd.extend(['--stats-user', stats['user']])
-        if 'password' in stats:
-            cmd.extend(['--stats-password', stats['password']])
-        if 'database' in stats:
-            cmd.extend(['--stats-database', stats['database']])
 
     return cmd
 
