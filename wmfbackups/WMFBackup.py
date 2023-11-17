@@ -243,12 +243,12 @@ class WMFBackup:
             cmd = backup.get_backup_cmd(backup_dir)
 
         # start status monitoring
-        if 'statistics' in self.config:  # Enable statistics gathering?
+        if 'stats_file' in self.config:  # Enable statistics gathering?
             source = self.config.get('host', 'localhost') + \
                      ':' + \
                      str(self.config.get('port', DEFAULT_PORT))
             stats = DatabaseBackupStatistics(dir_name=self.dir_name, section=self.name,
-                                             type=type, config=self.config.get('statistics'),
+                                             type=type, config={'stats_file': self.config.get('stats_file')},
                                              backup_dir=output_dir, source=source)
         else:
             stats = DisabledBackupStatistics()

@@ -101,40 +101,19 @@ Numerical order in which, from low to high, the backups
 will be executed.
 .TP
 \fBstats_file\fR: STATS_FILE
-Separate file where the statistics options are
+Separate ini mysql file where the statistics options are
 defined. This is so that passwords don't have to be
-provided on the command line (for remote backups)
-and are defined locally.
-This option and \fBstats_host\fR are mutually
-exclusive.
-The format of the stats file is also YAML, but only
-the following keys are allowed: \fBhost\fR,
-\fBuser\fR, \fBport\fR, \fBpassword\fR &
-\fBdatabase\fR. The host key is mandatory.
+provided on the command line, but in a [client] section.
+
 Please note \fBthe file is relative to the destination host\fR
 not the remote host where remote-mariadb-backup is running.
-.TP
-\fBstats_host\fR: STATS_HOST
-Host where the statistics database is. This option and
-\fBstats_file\fR are mutually exclusive
-.TP
-\fBstats_port\fR: STATS_PORT
-Port where the statistics database is. Default: 3306
-.TP
-\fBstats_user\fR: STATS_USER
-User for the statistics database.
-.TP
-\fBstats_password\fR: STATS_PASSWORD
-Password used for the statistics database.
-.TP
-\fBstats_database\fR: STATS_DATABASE
-MySQL schema that contains the statistics database.
 .SH "EXAMPLES"
  type: snapshot
  compress: true
  rotate: true
  retention: 3
  archive: false
+ stats_file: /etc/wmfbackups/statistics.cnf
  sections:
  s1:
    host: 's1-master.eqiad.wmnet'
@@ -143,7 +122,7 @@ MySQL schema that contains the statistics database.
    host: 's2-master.eqiad.wmnet'
    destination: dbprov1008.eqiad.wmnet
 .TP
-In this example, a snapshot backup type has been defined as the global config for all sections. It also has set to return a compressed tarball that will be deleted in 3 days. No archival by default.
+In this example, a snapshot backup type has been defined as the global config for all sections. It also has set to return a compressed tarball that will be deleted in 3 days. No archival by default. Stats will be gathered.
 .TP
 2 backups will be generated on each run, one for s1 (from the given host) and one for s2 (from a different host). s1 will be sent to dbprov1009 and s2 will be sent to dbprov1008.
 
