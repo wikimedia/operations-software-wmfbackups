@@ -1,0 +1,32 @@
+.TH CHECK-DBBACKUPS-TIME: "1" "November 2023" "wmfbackups-check" "User Commands"
+.SH NAME
+check\-dbbackups\-time \- Email alert for WMF backup duration.
+.SH DESCRIPTION
+.PP
+Check (usually setup as a daemon/systemd timer) that checks
+the backups run in the last week and alerts by email
+if any took more than a given amount of time in hours.
+.PP
+It will use the following environement variables:
+.TP
+\fBMAX_HOURS\fR
+Limit number of hours after which it will alert
+.TP
+\fBEMAIL\fR
+Email recipient
+.TP
+\fBMYSQL_CONFIG_FILE\fR
+Path of the ini config file with the mysql connection details
+on a [client] section to connect to the dbbackups metadata db.
+.PP
+If it detects a backup took (or is currently running) for over
+the number of hours indicated, it will send an email with its
+details.
+.SH SYNOPSIS
+.B check\-dbbackups\-time
+.SH "SEE ALSO"
+Full documentation available at https://wikitech.wikimedia.org/wiki/MariaDB/Backups
+.SH AUTHOR
+Jaime Crespo
+.SH COPYRIGHT
+2018-2023, Jaime Crespo <jcrespo@wikimedia.org>, Wikimedia Foundation, Inc.

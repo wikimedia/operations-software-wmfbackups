@@ -1,1 +1,2 @@
 debian/check-mariadb-backups.1
+debian/check-dbbackup-time.1

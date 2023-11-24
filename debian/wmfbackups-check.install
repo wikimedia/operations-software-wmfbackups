@@ -1,2 +1,3 @@
 wmfbackups/check/*.py usr/lib/python3/dist-packages/wmfbackups/check
 usr/bin/check-mariadb-backups
+usr/bin/check-dbbackup-time
