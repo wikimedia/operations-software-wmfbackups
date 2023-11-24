@@ -1,4 +1,4 @@
-wmfbackups (0.8.3+deb11u2) bullseye; urgency=medium
+wmfbackups (0.8.3+deb12u2) bookworm; urgency=medium
 
   * Migrate stats config to a mysql ini file for flexibility
 
