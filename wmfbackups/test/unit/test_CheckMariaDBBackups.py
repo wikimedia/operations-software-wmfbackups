@@ -6,6 +6,7 @@ import unittest
 from unittest.mock import patch, MagicMock
 
 import wmfbackups.check.check_mariadb_backups as check
+import wmfbackups.WMFMetrics as WMFMetrics
 
 
 class MockOptions:
@@ -17,7 +18,7 @@ class MockOptions:
     crit_size_percentage = 30
     warn_size_percentage = 25
     min_size = 10000
-    user = 'root'
+    config_file = '.my.ini'
     password = 'abc'
     host = 'localhost'
     database = 'my_database'
@@ -87,42 +88,49 @@ class TestCheckMariaDBBackups(unittest.TestCase):
     def test_check_backup_database(self):
         with patch('wmfbackups.WMFMetrics.WMFMetrics.query_metadata_database', MagicMock(return_value=self.test_data)):
             options = MockOptions()
+            metrics = WMFMetrics.WMFMetrics(options)
             # valid backup
-            self.assertEqual(check.check_backup_database(options),
+            self.assertEqual(check.check_backup_database(options, metrics),
                              (0, 'Last snapshot for g1 at eqiad (db1001) taken on 2022-01-02 00:00:01 (12 KiB, +20.0 %)'))
             # warning because size change
             options.warn_size_percentage = 15
-            self.assertEqual(check.check_backup_database(options),
+            metrics = WMFMetrics.WMFMetrics(options)
+            self.assertEqual(check.check_backup_database(options, metrics),
                              (1, 'Last snapshot for g1 at eqiad (db1001) taken on '
                                  '2022-01-02 00:00:01 is 12 KiB, but the previous one was 10 KiB, '
                                  'a change of +20.0 %'))
             # critical because size change
             options.crit_size_percentage = 10
-            self.assertEqual(check.check_backup_database(options),
+            metrics = WMFMetrics.WMFMetrics(options)
+            self.assertEqual(check.check_backup_database(options, metrics),
                              (2, 'Last snapshot for g1 at eqiad (db1001) taken on '
                                  '2022-01-02 00:00:01 is 12 KiB, but the previous one was 10 KiB, '
                                  'a change of +20.0 %'))
             options = MockOptions()
             # old last backup
             options.freshness = 3600
-            self.assertEqual(check.check_backup_database(options),
+            metrics = WMFMetrics.WMFMetrics(options)
+            self.assertEqual(check.check_backup_database(options, metrics),
                              (2, 'snapshot for g1 at eqiad (db1001) taken more than an hour ago: '
                                  'Most recent backup 2022-01-02 00:00:01'))
             # backup too small
             options = MockOptions()
             options.min_size = 30000
-            self.assertEqual(check.check_backup_database(options),
+            metrics = WMFMetrics.WMFMetrics(options)
+            self.assertEqual(check.check_backup_database(options, metrics),
                              (2, 'snapshot for g1 at eqiad (db1001, 2022-01-02 00:00:01): '
                                  '12 KiB is less than 29 KiB'))
         # No backups found
         with patch('wmfbackups.WMFMetrics.WMFMetrics.query_metadata_database', MagicMock(return_value=[])):
             options = MockOptions()
-            self.assertEqual(check.check_backup_database(options),
+            metrics = WMFMetrics.WMFMetrics(options)
+            self.assertEqual(check.check_backup_database(options, metrics),
                              (2, 'We could not find any completed snapshot for g1 at eqiad'))
         # Only 1 backup found
         with patch('wmfbackups.WMFMetrics.WMFMetrics.query_metadata_database', MagicMock(return_value=[self.test_data[0]])):
             options = MockOptions()
-            self.assertEqual(check.check_backup_database(options),
+            metrics = WMFMetrics.WMFMetrics(options)
+            self.assertEqual(check.check_backup_database(options, metrics),
                              (1, 'There is only 1 snapshot for g1 at eqiad (db1001) '
                                  'taken on 2022-01-02 00:00:01 (12 KiB)'))
 

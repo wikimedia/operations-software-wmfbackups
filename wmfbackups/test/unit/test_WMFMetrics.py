@@ -24,22 +24,24 @@ class TestWMFMetrics(TestCase):
         pass
 
     def test_get_valid_sections(self):
+        options = MockOptions()
+        metrics = WMFMetrics.WMFMetrics(options)
         mock = mock_open(read_data="a1\nb2\nc3")
         with patch('builtins.open', mock):
-            self.assertEqual(WMFMetrics.WMFMetrics.get_valid_sections(), ['a1', 'b2', 'c3'])
+            self.assertEqual(metrics.get_valid_sections(), ['a1', 'b2', 'c3'])
         mock = mock_open(read_data="a1\n\n\nb2\nc3\n")
         with patch('builtins.open', mock):
-            self.assertEqual(WMFMetrics.WMFMetrics.get_valid_sections(), ['a1', 'b2', 'c3'])
+            self.assertEqual(metrics.get_valid_sections(), ['a1', 'b2', 'c3'])
         mock = mock_open(read_data="   \na1 \n  b2\n c3  \n \n")
         with patch('builtins.open', mock):
-            self.assertEqual(WMFMetrics.WMFMetrics.get_valid_sections(), ['a1', 'b2', 'c3'])
+            self.assertEqual(metrics.get_valid_sections(), ['a1', 'b2', 'c3'])
         mock = mock_open(read_data="")
-        self.assertRaises(WMFMetrics.BadConfigException, WMFMetrics.WMFMetrics.get_valid_sections)
+        self.assertRaises(WMFMetrics.BadConfigException, metrics.get_valid_sections)
         mock = mock_open(read_data="\n \n")
-        self.assertRaises(WMFMetrics.BadConfigException, WMFMetrics.WMFMetrics.get_valid_sections)
+        self.assertRaises(WMFMetrics.BadConfigException, metrics.get_valid_sections)
         mock = mock_open(read_data="a1\nb2\nc3")
         mock_open.side_effect = IOError()
-        self.assertRaises(WMFMetrics.BadConfigException, WMFMetrics.WMFMetrics.get_valid_sections)
+        self.assertRaises(WMFMetrics.BadConfigException, metrics.get_valid_sections)
 
     @patch('wmfbackups.WMFMetrics.pymysql')
     def test_query_metadata_database(self, mock_pymysql):
