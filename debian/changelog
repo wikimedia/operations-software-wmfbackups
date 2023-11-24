@@ -1,3 +1,12 @@
+wmfbackups (0.8.4+deb11u1) bullseye; urgency=medium
+
+  * Integrate check-dbbackup-time into wmfbackups-check
+  * Migrate wmfbackups-check to use /etc/wmfbackups/backups_check.ini
+    for mysql connection config and remove connection details options
+    from command line arguments
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Fri, 24 Nov 2023 15:46:47 +0100
+
 wmfbackups (0.8.3+deb12u1) bookworm; urgency=medium
 
   * Updated the package to make it buildable in bookworm.

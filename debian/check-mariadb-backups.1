@@ -1,4 +1,4 @@
-.TH CHECK-MARIADB-BACKUPS: "1" "March 2022" "wmfbackups-check" "User Commands"
+.TH CHECK-MARIADB-BACKUPS: "1" "November 2023" "wmfbackups-check" "User Commands"
 .SH NAME
 check\-mariadb\-backups \- Icinga check for WMF backup freshness
 .SH DESCRIPTION
@@ -19,20 +19,8 @@ with the backup status or found problems.
 \fB\-h\fR, \fB\-\-help\fR
 show this help message and exit
 .TP
-\fB\-\-host\fR HOST, \fB\-o\fR HOST
-Host with the database to connect to
-.TP
-\fB\-\-user\fR USER, \fB\-u\fR USER
-user used for the mysql connection
-.TP
-\fB\-\-password\fR PASSWORD, \fB\-w\fR PASSWORD
-Password used for the mysql connection
-.TP
-\fB\-\-database\fR DATABASE, \fB\-D\fR DATABASE
-Database where the backup metadata is stored
-.TP
 \fB\-\-section\fR SECTION, \fB\-s\fR SECTION
-Database section/shard to check. Must be on of: One of: s1, s2, s3, s4, s5, s6, s7, s8, s10, x1, pc1, pc2, pc3, es1, es2, es3, es4, es5, m1, m2, m3, m4, m5, tendril, zarcillo, mediabackupstemp, matomo, analytics_meta
+Database section/shard to check. Must be on of: One of: s1, s2, s3, s4, s5, s6, s7, s8, s10, x1, x2, pc1, pc2, pc3, es1, es2, es3, es4, es5, m1, m2, m3, m4, m5, db_inventory, mediabackupstemp, matomo, analytics_meta, backup1-eqiad, backup1-codfw
 .TP
 \fB\-\-datacenter\fR {eqiad,codfw}, \fB\-d\fR {eqiad,codfw}
 Datacenter storage location of the backup to check.
@@ -57,9 +45,15 @@ backups, above which a WARNING is produced (default:
 Percentage of size change compared to previous
 backups, above which a CRITICAL is produced (default:
 15%)
+.TP
+\fB\-\-config\-file\fR FILE, \fB\-m\fR FILE
+Path to the Ini config file used for MySQL connection
+.TP
+\fB\-\-valid\-sections\-file\fR FILE, \fB\-v\fR FILE
+Path to the text file containing the list of valid sections.
 .SH "SEE ALSO"
 Full documentation available at https://wikitech.wikimedia.org/wiki/MariaDB/Backups
 .SH AUTHOR
 Jaime Crespo
 .SH COPYRIGHT
-2018-2022, Jaime Crespo <jcrespo@wikimedia.org>, Wikimedia Foundation, Inc.
+2018-2023, Jaime Crespo <jcrespo@wikimedia.org>, Wikimedia Foundation, Inc.
