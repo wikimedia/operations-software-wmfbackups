@@ -92,10 +92,10 @@ def get_options():
     except SystemExit:
         sys.exit(UNKNOWN)
 
-    metrics = WMFMetrics(parsed_options)
-    valid_sections = metrics.get_valid_sections(parsed_options)
+    wmfmetrics = WMFMetrics(parsed_options)
+    valid_sections = wmfmetrics.get_valid_sections()
     setattr(parsed_options, 'valid_sections', valid_sections)
-    return parsed_options, metrics
+    return parsed_options, wmfmetrics
 
 
 def validate_input(options):
@@ -248,11 +248,11 @@ def check_backup_database(options, metrics):
 def main():
     """Parse options, query db and print results in icinga format"""
     try:
-        options, metrics = get_options()
+        options, wmfmetrics = get_options()
     except BadConfigException:
         print(f'Error while opening or reading the config file: {options.valid_sections_file}')
         sys.exit(UNKNOWN)
-    result = check_backup_database(options, metrics)
+    result = check_backup_database(options, wmfmetrics)
     print(result[1])
     sys.exit(result[0])
 

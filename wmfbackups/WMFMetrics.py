@@ -56,7 +56,7 @@ class WMFMetrics:
         for the given options. Return true and the data if successful, false and an error
         message if failed."""
         try:
-            db = pymysql.connect(config=self.config_file)
+            db = pymysql.connect(read_default_file=self.config_file)
         except (pymysql.err.OperationalError, pymysql.err.InternalError) as ex:
             raise DatabaseConnectionException from ex
         with db.cursor(pymysql.cursors.DictCursor) as cursor:
