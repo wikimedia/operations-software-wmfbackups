@@ -7,7 +7,7 @@ with open('README.md', 'r') as fh:
 setup(
     name='wmfbackups',
     description='wmfbackups',
-    version='0.8.3',
+    version='0.8.4',
     long_description=long_description,
     long_description_content_type="text/markdown",
     url="https://phabricator.wikimedia.org/diffusion/OSWB/",
@@ -23,7 +23,8 @@ setup(
            # cli_remote
            'remote-backup-mariadb = wmfbackups.cli_remote.remote_backup_mariadb:main',
            # check
-           'check-mariadb-backups = wmfbackups.check.check_mariadb_backups:main'
+           'check-mariadb-backups = wmfbackups.check.check_mariadb_backups:main',
+           'check-dbbackup-time = wmfbackups.check.check_dbbackup_time:main'
         ]
     },
     test_suite='wmfbackups.test',

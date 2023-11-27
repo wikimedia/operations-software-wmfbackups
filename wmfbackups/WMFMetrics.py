@@ -2,8 +2,8 @@ import pymysql
 
 """Classes used to report metrics of backups to icinga and prometheus"""
 
-VALID_SECTION_CONFIG = '/etc/wmfbackups/valid_sections.txt'
-DEFAULT_SSL_CA = '/etc/ssl/certs/Puppet_Internal_CA.pem'  # CA path used for mysql TLS connection
+DEFAULT_VALID_SECTION_CONFIG_PATH = '/etc/wmfbackups/valid_sections.txt'
+DEFAULT_CONFIG_FILE_PATH = '/etc/wmfbackups/backups_check.ini'
 
 
 class BadConfigException(Exception):
@@ -28,22 +28,20 @@ class DatabaseQueryException(Exception):
 class WMFMetrics:
     """Class to retrieve metrics from the database backups"""
 
-    host = 'localhost'
-    user = 'root'
-    password = ''
-    database = 'dbbackups'
-    ssl = {'ca': DEFAULT_SSL_CA}
+    def __init__(self, options):
+        """Constructor"""
+        self.config_file = options.config_file if hasattr(options, 'config_file') else DEFAULT_CONFIG_FILE_PATH
+        self.valid_sections_config_path = options.valid_sections_file if hasattr(options, 'valid_sections_file') else DEFAULT_VALID_SECTION_CONFIG_PATH
 
-    @staticmethod
-    def get_valid_sections():
-        """Reads the list of valid section names/backup job names from a fixed
+    def get_valid_sections(self):
+        """Reads the list of valid section names/backup job names from a given
         config file and loads it into memory for config validation."""
         valid_sections = list()
         # TODO: Change this into a wmf api call- See conversation at:
         #       https://gerrit.wikimedia.org/r/c/operations/software/wmfbackups/+/767844
         #       (now tracked at T138562) why we cannot do this yet
         try:
-            with open(VALID_SECTION_CONFIG, 'r', encoding='utf8') as config_file:
+            with open(self.valid_sections_config_path, 'r', encoding='utf8') as config_file:
                 for line in config_file:
                     if len(line.strip()) >= 1:
                         valid_sections.append(line.strip())
@@ -53,20 +51,12 @@ class WMFMetrics:
             raise BadConfigException
         return valid_sections
 
-    def __init__(self, options):
-        """Constructor"""
-        self.host = options.host
-        self.user = options.user
-        self.password = options.password
-        self.database = options.database
-
     def query_metadata_database(self, options):
         """Connect to and query the metadata database, return the data of the last 2 backups
         for the given options. Return true and the data if successful, false and an error
         message if failed."""
         try:
-            db = pymysql.connect(host=self.host, user=self.user, password=self.password,
-                                 database=self.database, ssl=self.ssl)
+            db = pymysql.connect(read_default_file=self.config_file)
         except (pymysql.err.OperationalError, pymysql.err.InternalError) as ex:
             raise DatabaseConnectionException from ex
         with db.cursor(pymysql.cursors.DictCursor) as cursor:

@@ -12,7 +12,9 @@ import arrow
 
 
 from wmfbackups.WMFMetrics import WMFMetrics, BadConfigException, DatabaseConnectionException, \
-                                  DatabaseQueryException, VALID_SECTION_CONFIG
+                                  DatabaseQueryException, DEFAULT_VALID_SECTION_CONFIG_PATH, \
+                                  DEFAULT_CONFIG_FILE_PATH
+
 
 OK = 0
 WARNING = 1
@@ -42,50 +44,58 @@ class BadTypeException(Exception):
     pass
 
 
-def get_options(valid_sections):
+def get_options():
     """Parses the commandline options and returns them as an object,
        also return a list of available sections"""
     parser = argparse.ArgumentParser(description='Checks if backups for a '
                                                  'specific section are fresh.')
-    parser.add_argument('--host', '-o', required=True,
-                        help='Host with the database to connect to')
-    parser.add_argument('--user', '-u', required=True,
-                        help='user used for the mysql connection')
-    parser.add_argument('--password', '-w', default='',
-                        help='Password used for the mysql connection')
-    parser.add_argument('--database', '-D', required=True,
-                        help='Database where the backup metadata is stored')
     parser.add_argument('--section', '-s', required=True,
-                        choices=valid_sections,
-                        help='Database section/shard to check')
+                        help='Database section/shard to check.')
     parser.add_argument('--datacenter', '-d', required=True,
                         choices=DATACENTERS,
                         help='Datacenter storage location of the backup to check.')
-    parser.add_argument('--type', '-t', required=False,
+    parser.add_argument('--config-file', '-m',
+                        help=('Path of the MySQL ini file with the connection config. '
+                              f'By default, {DEFAULT_CONFIG_FILE_PATH}'),
+                        default=DEFAULT_CONFIG_FILE_PATH)
+    parser.add_argument('--valid-sections-file', '-v',
+                        help=('Path file with the list of valid sections to check. '
+                              f'By default, {DEFAULT_VALID_SECTION_CONFIG_PATH}'),
+                        default=DEFAULT_VALID_SECTION_CONFIG_PATH)
+    parser.add_argument('--type', '-t',
                         choices=TYPES, default=TYPES[0],
                         help='Type or method of backup, dump or snapshot')
     parser.add_argument('--freshness', '-f', default=DEFAULT_FRESHNESS,
                         type=int,
-                        help='Time, in seconds, of how old a backup can be '
-                             'before being considered outdated (default: 8 days)')
-    parser.add_argument('--min-size', '-c', default=DEFAULT_MIN_SIZE,
+                        help=('Time, in seconds, of how old a backup can be '
+                              'before being considered outdated. '
+                              f'By default, {DEFAULT_FRESHNESS} seconds.'))
+    parser.add_argument('--min-size', '-c', default=DEFAULT_FRESHNESS,
                         type=int,
-                        help='Size, in bytes, below which the backup is considered '
-                             'failed in any case (default: 300 KB)')
-    parser.add_argument('--warn-size-percentage', '-p', default=DEFAULT_WARN_SIZE_PERCENTAGE,
+                        help=('Size, in bytes, below which the backup is considered '
+                              'failed in any case. '
+                              f'By default, {DEFAULT_MIN_SIZE} bytes.'))
+    parser.add_argument('--warn-size-percentage', '-p',
                         type=float,
-                        help='Percentage of size change compared to previous backups, '
-                             'above which a WARNING is produced (default: 5%%)')
-    parser.add_argument('--crit-size-percentage', '-P', default=DEFAULT_CRIT_SIZE_PERCENTAGE,
+                        help=('Percentage of size change compared to previous backups, '
+                              'above which a WARNING is produced. '
+                              f'By default, {DEFAULT_WARN_SIZE_PERCENTAGE} %%.'),
+                        default=DEFAULT_WARN_SIZE_PERCENTAGE)
+    parser.add_argument('--crit-size-percentage', '-P',
                         type=float,
-                        help='Percentage of size change compared to previous backups, '
-                             'above which a CRITICAL is produced (default: 15%%)')
+                        help=('Percentage of size change compared to previous backups, '
+                              'above which a CRITICAL is produced. '
+                              f'By default, {DEFAULT_CRIT_SIZE_PERCENTAGE} %%.'),
+                        default=DEFAULT_CRIT_SIZE_PERCENTAGE)
     try:
         parsed_options = parser.parse_args()
     except SystemExit:
         sys.exit(UNKNOWN)
+
+    wmfmetrics = WMFMetrics(parsed_options)
+    valid_sections = wmfmetrics.get_valid_sections()
     setattr(parsed_options, 'valid_sections', valid_sections)
-    return parsed_options
+    return parsed_options, wmfmetrics
 
 
 def validate_input(options):
@@ -168,7 +178,7 @@ def process_previous_backup_data(size, data):
     return previous_size, humanized_previous_size, percentage_change, humanized_percentage_change
 
 
-def check_backup_database(options):
+def check_backup_database(options, metrics):
     '''
     Connects to the database with the backup metadata and checks for anomalies.
     :param options: structure with a section, datacenter and freshness
@@ -186,7 +196,6 @@ def check_backup_database(options):
         return (UNKNOWN, f'Bad or unrecognized type: {options.type}')
     identifier = f'{type} for {section} at {datacenter}'
 
-    metrics = WMFMetrics(options)
     try:
         data = metrics.query_metadata_database(options)
     except DatabaseConnectionException:
@@ -239,12 +248,11 @@ def check_backup_database(options):
 def main():
     """Parse options, query db and print results in icinga format"""
     try:
-        valid_sections = WMFMetrics.get_valid_sections()
+        options, wmfmetrics = get_options()
     except BadConfigException:
-        print(f'Error while opening or reading the config file: {VALID_SECTION_CONFIG}')
+        print(f'Error while opening or reading the config file: {options.valid_sections_file}')
         sys.exit(UNKNOWN)
-    options = get_options(valid_sections)
-    result = check_backup_database(options)
+    result = check_backup_database(options, wmfmetrics)
     print(result[1])
     sys.exit(result[0])
 
