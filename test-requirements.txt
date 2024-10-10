@@ -1,6 +1,6 @@
 flake8
 freezegun
-nose
+pynose
 coverage
 pylint
 git+https://gitlab.wikimedia.org/repos/sre/wmfmariadbpy.git
