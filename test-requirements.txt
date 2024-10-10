@@ -3,4 +3,3 @@ freezegun
 nose
 coverage
 pylint
-git+https://gitlab.wikimedia.org/repos/sre/wmfmariadbpy.git#egg=wmfmariadbpy
