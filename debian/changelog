@@ -1,3 +1,9 @@
+wmfbackups (0.8.4+deb12u1) bookworm-wikimedia; urgency=medium
+
+  * Updates for bookworm (Debian 12)
+
+ -- Jaime Crespo <jcrespo@wikimedia.org>  Thu, 10 Oct 2024 17:36:45 +0200
+
 wmfbackups (0.8.4+deb11u1) bullseye; urgency=medium
 
   * Integrate check-dbbackup-time into wmfbackups-check
