@@ -14,7 +14,7 @@ setup(
     packages=['wmfbackups'],
     install_requires=['arrow',
                       'pymysql>=0.9.3',
-                      'wmfmariadbpy @ git+https://gerrit.wikimedia.org/r/operations/software/wmfmariadbpy@v0.6'],
+                      'wmfmariadbpy @ git+https://gitlab.wikimedia.org/repos/sre/wmfmariadbpy.git'],
     entry_points={
         'console_scripts': [
            # cli
