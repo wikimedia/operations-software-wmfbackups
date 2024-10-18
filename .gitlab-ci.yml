@@ -3,7 +3,7 @@ stages:
 test:
   stage: test
   image:
-    name: docker-registry.wikimedia.org/releng/tox-bookworm:latest
+    name: docker-registry.wikimedia.org/python3-build-bookworm:latest
     entrypoint: [""]
   script:
     - tox
