@@ -148,6 +148,7 @@ def send_email(message):
     """
     smtp = smtplib.SMTP('localhost')
     message['Auto-Submitted'] = "auto-generated"
+    message['Return-Path'] = "root@wikimedia.org"
     smtp.send_message(message)
     smtp.quit()
     print("Email sent to " + message['To'], file=sys.stderr)
