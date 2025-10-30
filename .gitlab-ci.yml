@@ -1,9 +1,12 @@
 stages:
   - test
+
 test:
   stage: test
   image:
-    name: docker-registry.wikimedia.org/releng/tox-bookworm:latest
+    name: docker-registry.wikimedia.org/bookworm
     entrypoint: [""]
   script:
+    - DEBIAN_FRONTEND=noninteractive apt-get -qq update
+    - DEBIAN_FRONTEND=noninteractive apt-get -qq -y install tox git
     - tox

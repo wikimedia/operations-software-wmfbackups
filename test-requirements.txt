@@ -1,5 +1,9 @@
+arrow
+pymysql
 flake8
 freezegun
 pynose
 coverage
 pylint
+SetupTools<81
+wmfmariadbpy @ git+https://gitlab.wikimedia.org/repos/sre/wmfmariadbpy.git
